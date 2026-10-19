@@ -204,6 +204,25 @@ test('formatting uses integer math', () => {
   assert.equal(S.formatFinenessShort(583.33), '583.3');
 });
 
+test('results header shows real mass and target', () => {
+  assert.equal(S.resultsTitle(G(26), 585), 'Что взять для плавки (на 26 г, проба 585)');
+  assert.equal(S.resultsTitle(G(26.5), 750), 'Что взять для плавки (на 26.5 г, проба 750)');
+  assert.equal(S.formatGramsShort(G(26.55)), '26.55');
+  assert.equal(S.formatGramsShort(G(30)), '30');
+});
+
+test('empty stock rows are ignored by the calculation', () => {
+  const emptyRows = [
+    { id: 1, mg: null, fineness: null, mandatory: false },
+    { id: 2, mg: G(5), fineness: null, mandatory: false },
+    { id: 3, mg: null, fineness: 750, mandatory: true },
+  ];
+  const withEmpty = S.solve({ massMg: G(26), target: 585, lots: emptyRows });
+  const without = S.solve({ massMg: G(26), target: 585, lots: [] });
+  assert.equal(withEmpty.hasStock, false);
+  assert.deepEqual(withEmpty.options.map((o) => o.text), without.options.map((o) => o.text));
+});
+
 test('fuzz: never NaN, never negative or zero grams, sums are exact', () => {
   let seed = 42;
   const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);

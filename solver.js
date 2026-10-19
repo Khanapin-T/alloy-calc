@@ -70,6 +70,11 @@
     return sign + Math.floor(a / 1000) + '.' + String(a % 1000).padStart(3, '0');
   }
 
+  // 26000 -> "26", 26500 -> "26.5", 26550 -> "26.55" (labels, not recipes)
+  function formatGramsShort(mg) {
+    return formatGrams(mg).replace(/\.?0+$/, '');
+  }
+
   // fractional mg (e.g. pure gold content) -> grams rounded to 0.01
   function formatGold(mg) {
     return formatGrams(round10(mg));
@@ -364,6 +369,11 @@
     };
   }
 
+  // header above the result cards: they describe what to melt, not the target
+  function resultsTitle(massMg, target) {
+    return 'Что взять для плавки (на ' + formatGramsShort(massMg) + ' г, проба ' + formatFinenessShort(target) + ')';
+  }
+
   // ---------- screen 2 ----------
 
   // { rows: [{ mg, fineness }], ligatureMg, ligatureFineness } -> { totalMg, goldMg, fineness } | null
@@ -395,6 +405,7 @@
     gramsToMg,
     round10,
     formatGrams,
+    formatGramsShort,
     formatGold,
     formatFineness,
     formatFinenessShort,
@@ -409,6 +420,7 @@
     sortOptions,
     dilution,
     solve,
+    resultsTitle,
     mixResult,
     addToHistory,
   };
