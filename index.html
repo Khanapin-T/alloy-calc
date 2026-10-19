@@ -200,7 +200,7 @@
 
   .card {
     display: flex; gap: 8px; align-items: flex-start;
-    padding: 12px 8px 12px 14px;
+    padding: 10px 8px 10px 14px;
     margin-bottom: 8px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -208,13 +208,35 @@
   }
   .card-main { flex: 1; min-width: 0; }
   .recipe { margin: 0; font-size: 18px; line-height: 1.4; }
-  .recipe b { font-weight: 700; white-space: nowrap; }
-  .recipe .whole { color: var(--muted); font-size: 15px; }
+
+  /* recipe as rows: [grams] [fineness badge] [tag] */
+  .parts {
+    display: grid; grid-template-columns: auto 1fr;
+    gap: 4px 10px; align-items: center;
+    margin: 0; padding: 0; list-style: none;
+  }
+  .part { display: contents; }
+  .part .mat { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .part .g { justify-self: end; font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .part .g small { font-size: 15px; font-weight: 600; margin-left: 2px; }
+  .badge {
+    justify-self: start;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 16px; font-weight: 700;
+    background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+    color: var(--text);
+  }
+  .badge.lig { background: var(--surface-2); color: var(--muted); font-weight: 600; }
+  .part .tag { font-size: 13px; color: var(--muted); }
+  .part.whole .g { font-size: 16px; font-weight: 600; color: var(--muted); }
+  .part.whole .badge { font-size: 14px; background: var(--surface-2); color: var(--muted); }
+  .skip { margin: 6px 0 0; font-size: 14px; color: var(--warn); font-weight: 600; }
   .check { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
   .check .ok { color: var(--ok); font-weight: 700; }
   .check .bad { color: var(--warn); font-weight: 700; }
   .note { margin: 6px 0 0; font-size: 14px; color: var(--danger); font-weight: 600; }
-  .card.dim .recipe, .card.dim .check { opacity: .5; }
+  .card.dim .parts, .card.dim .check { opacity: .5; }
   .card.warn { background: var(--warn-bg); border-color: transparent; }
   .card.warn .recipe { font-size: 16px; color: var(--warn); }
   .card.good .recipe { color: var(--ok); font-size: 16px; }
@@ -580,19 +602,21 @@
     };
   }
 
+  // one row per material; whole lots are the same on every card, so they stay quiet
   function recipeEl(parts) {
-    const p = el('p', { class: 'recipe' });
-    parts.forEach((part, i) => {
-      if (i) p.append(' + ');
-      if (part.wholeLot) {
-        // mandatory lots are the same on every card: keep them quiet
-        p.append(el('span', { class: 'whole', text: S.formatGrams(part.mg) + ' г ' + S.formatFinenessShort(part.fineness) + ' (весь лот)' }));
-        return;
-      }
-      p.append(el('b', { text: S.formatGrams(part.mg) + ' г' }));
-      p.append(part.source === 'ligature' ? ' лигатуры' : ' золота ' + S.formatFinenessShort(part.fineness));
-    });
-    return p;
+    return el('ul', { class: 'parts' }, parts.map((part) => {
+      const lig = part.source === 'ligature';
+      let tag = '';
+      if (part.wholeLot) tag = 'весь лот';
+      else if (part.cutFromMg) tag = 'из ' + S.formatGramsShort(part.cutFromMg) + ' г';
+      return el('li', { class: 'part' + (part.wholeLot ? ' whole' : '') }, [
+        el('span', { class: 'g' }, [S.formatGrams(part.mg), el('small', { text: 'г' })]),
+        el('span', { class: 'mat' }, [
+          el('span', { class: 'badge' + (lig ? ' lig' : ''), text: lig ? 'лигатура' : S.formatFinenessShort(part.fineness) }),
+          tag ? el('span', { class: 'tag', text: tag }) : null,
+        ]),
+      ]);
+    }));
   }
 
   function checkEl(check) {
@@ -607,6 +631,9 @@
       el('div', { class: 'card-main' }, [
         recipeEl(o.parts),
         o.note ? el('p', { class: 'note', text: o.note }) : null,
+        o.skipped && o.skipped.length
+          ? el('p', { class: 'skip', text: 'Не брать: ' + o.skipped.map((l) => S.formatGrams(l.mg) + ' г ' + S.formatFinenessShort(l.fineness)).join(', ') })
+          : null,
         checkEl(o.check),
       ]),
       copyButton(() => o.text, commitHistory),
@@ -625,22 +652,24 @@
       out.push(optionCard(res));
     } else if (res.status === 'error') {
       out.push(messageCard(res.message, 'warn'));
-      if (res.dilution) {
-        out.push(el('div', { class: 'section-title', text: 'Можно так: часть лота + лигатура' }));
-        out.push(optionCard(res.dilution));
+      if (res.dilutions.length) {
+        out.push(el('div', { class: 'section-title', text: 'Можно так: обрезать лот и добавить лигатуру' }));
+        res.dilutions.forEach((d) => out.push(optionCard(d)));
       }
     } else if (res.status === 'ok') {
       if (res.hasMandatory) {
         out.push(el('p', { class: 'info', text: 'Остаток: ' + S.formatGrams(res.remainder.mg) +
           ' г пробы ' + S.formatFineness(res.remainder.fineness) }));
       }
-      if (!res.hasStock) {
-        out.push(el('div', { class: 'section-title', text: 'Варианты' }));
+      if (!res.hasFreeStock) {
+        // nothing to pick from (no rows, or only "весь в плавку" rows): one plain list
+        out.push(el('div', { class: 'section-title', text: res.hasMandatory ? 'Чем дополнить' : 'Варианты' }));
         res.options.forEach((o) => out.push(optionCard(o)));
       } else {
         const own = res.options.filter((o) => o.section === 'stock' || o.section === 'short');
         const other = res.options.filter((o) => o.section === 'other');
-        out.push(el('div', { class: 'section-title', text: own.length ? 'Из наличия' : 'Из наличия — не собрать' }));
+        if (own.length) out.push(el('div', { class: 'section-title', text: 'Из наличия' }));
+        else out.push(el('p', { class: 'empty-note', text: 'Свободные строки наличия сюда не подходят по пробе.' }));
         own.forEach((o) => out.push(optionCard(o)));
         if (other.length) {
           out.push(el('div', { class: 'section-title', text: 'Остальные варианты (наличие не указано)' }));

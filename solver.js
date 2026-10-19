@@ -263,9 +263,59 @@
     );
   }
 
-  // Take x of the mandatory blend and complete with ligature: x = M*(T-L)/(F_on-L).
-  // Offered only when the blend is richer than the target (or already equal to it).
-  function dilution(massMg, target, mandatory, ligatureFineness) {
+  // Too much metal/gold in the "whole lot" rows: every lot is either taken whole, cut (exactly one)
+  // or left out, and the rest is ligature. Options that leave out the fewest lots win.
+  //   y = (G' - R'*L/1000) / ((f_k - L)/1000), where R', G' = mass and gold left after the whole lots
+  const CUT_SEARCH_MAX_LOTS = 10;
+
+  function cutOptions(massMg, target, mandatory, ligatureFineness) {
+    const L = ligatureFineness;
+    const n = mandatory.length;
+    if (n === 0 || n > CUT_SEARCH_MAX_LOTS) return [];
+    const found = [];
+    mandatory.forEach((cut, k) => {
+      const others = mandatory.filter((_, i) => i !== k);
+      for (let mask = 0; mask < 1 << others.length; mask++) {
+        const whole = others.filter((_, i) => mask & (1 << i));
+        const skipped = others.filter((_, i) => !(mask & (1 << i)));
+        const restMg = massMg - sumMg(whole);
+        const restGold = (massMg * target) / 1000 - goldOf(whole);
+        if (restMg <= 0 || cut.fineness <= L) continue;
+        const exact = (restGold * 1000 - restMg * L) / (cut.fineness - L);
+        if (!(exact > 0) || exact > cut.mg) continue;
+        const y = Math.min(round10(exact), cut.mg);
+        const ligMg = restMg - y;
+        if (y <= 0 || ligMg < 0) continue;
+        const parts = mandatoryParts(whole);
+        parts.push({ fineness: cut.fineness, mg: y, source: 'lot', wholeLot: false, cutFromMg: cut.mg, lotIds: [cut.id] });
+        if (ligMg > 0) parts.push({ fineness: L, mg: ligMg, source: 'ligature', wholeLot: false, lotIds: [] });
+        found.push({
+          parts,
+          ligMg,
+          skipped: skipped.map((l) => ({ fineness: l.fineness, mg: l.mg, lotIds: [l.id] })),
+          check: checkLine(parts, target),
+          text: recipeText(parts),
+        });
+      }
+    });
+    if (!found.length) return [];
+    const minSkipped = Math.min(...found.map((o) => o.skipped.length));
+    const seen = new Set();
+    return found
+      .filter((o) => o.skipped.length === minSkipped)
+      .sort((a, b) => a.ligMg - b.ligMg)
+      .filter((o) => {
+        // lots with equal mass and fineness give identical recipes
+        const key = o.text + '|' + o.skipped.map((l) => l.mg + '@' + l.fineness).sort().join(',');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  // Fallback when no single lot can be cut: take x of the whole blend, x = M*(T-L)/(F_on-L),
+  // split between lots by mass. Offered only when the blend is richer than the target (or equal).
+  function blendDilution(massMg, target, mandatory, ligatureFineness) {
     const L = ligatureFineness;
     const totalOn = sumMg(mandatory);
     if (totalOn <= 0 || target <= L) return null;
@@ -277,17 +327,28 @@
     x = Math.min(x, totalOn, massMg);
     if (x <= 0) return null;
 
-    // split x between mandatory lots proportionally to their mass
     const parts = [];
     let used = 0;
     mandatory.forEach((l, i) => {
       const share = i === mandatory.length - 1 ? x - used : Math.min(l.mg, round10((x * l.mg) / totalOn));
       used += share;
-      if (share > 0) parts.push({ fineness: l.fineness, mg: share, source: 'lot', wholeLot: false, lotIds: [l.id] });
+      if (share > 0) parts.push({ fineness: l.fineness, mg: share, source: 'lot', wholeLot: false, cutFromMg: l.mg, lotIds: [l.id] });
     });
     const ligMg = massMg - x;
     if (ligMg > 0) parts.push({ fineness: L, mg: ligMg, source: 'ligature', wholeLot: false, lotIds: [] });
     return { parts, check: checkLine(parts, target), text: recipeText(parts) };
+  }
+
+  // all dilution suggestions, best first
+  function dilutionOptions(massMg, target, mandatory, ligatureFineness) {
+    const cuts = cutOptions(massMg, target, mandatory, ligatureFineness);
+    if (cuts.length) return cuts;
+    const blend = blendDilution(massMg, target, mandatory, ligatureFineness);
+    return blend ? [blend] : [];
+  }
+
+  function dilution(massMg, target, mandatory, ligatureFineness) {
+    return dilutionOptions(massMg, target, mandatory, ligatureFineness)[0] || null;
   }
 
   // ---------- screen 1 ----------
@@ -308,12 +369,10 @@
     const rem = remainder(massMg, target, mandatory);
     const fmtOn = formatGrams(onMg) + ' г пробы ' + formatFineness(fOn);
 
-    const fail = (code, message) => ({
-      status: 'error',
-      code,
-      message,
-      dilution: dilution(massMg, target, mandatory, L),
-    });
+    const fail = (code, message) => {
+      const dilutions = dilutionOptions(massMg, target, mandatory, L);
+      return { status: 'error', code, message, dilution: dilutions[0] || null, dilutions };
+    };
 
     if (onMg > massMg) {
       return fail(
@@ -364,6 +423,7 @@
       status: 'ok',
       hasStock,
       hasMandatory: mandatory.length > 0,
+      hasFreeStock: available.length > 0, // lots the solver may take partially (toggle OFF)
       remainder: { mg: rem.mg, fineness: rem.fineness },
       options: sortOptions(options),
     };
@@ -418,6 +478,8 @@
     recipeText,
     enumerateOptions,
     sortOptions,
+    cutOptions,
+    dilutionOptions,
     dilution,
     solve,
     resultsTitle,

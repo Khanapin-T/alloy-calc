@@ -223,6 +223,49 @@ test('empty stock rows are ignored by the calculation', () => {
   assert.deepEqual(withEmpty.options.map((o) => o.text), without.options.map((o) => o.text));
 });
 
+test('whole lot of manual fineness (850) is completed with 585/750/999 + ligature', () => {
+  const res = S.solve({ massMg: G(26), target: 585, lots: [lot(1, 15, 850, true)] });
+  assert.equal(res.status, 'ok');
+  assert.equal(res.hasFreeStock, false, 'whole-lot rows alone are not stock to pick from');
+  assert.ok(Math.abs(res.remainder.fineness - 223.6) < 0.1, String(res.remainder.fineness));
+  const p585 = findOption(res, [585, 0]);
+  assert.equal(p585.parts[0].mg, G(15));
+  assert.equal(S.formatGrams(p585.parts[1].mg), '4.21');
+  assert.equal(S.formatGrams(p585.parts[2].mg), '6.79');
+  assert.ok(findOption(res, [750, 0]) && findOption(res, [999, 0]));
+  assert.ok(res.options.every((o) => o.check.ok && o.check.totalMg === G(26)));
+});
+
+test('several whole lots over the mass: cut one lot, keep the others whole', () => {
+  const res = S.solve({ massMg: G(26), target: 585, lots: [lot(1, 10, 750, true), lot(2, 20, 585, true)] });
+  assert.equal(res.code, 'MANDATORY_EXCEEDS_MASS');
+  assert.equal(res.dilutions.length, 2);
+  for (const d of res.dilutions) {
+    assert.equal(d.parts.filter((p) => p.source === 'lot').length, 1, 'exactly one lot is cut');
+    assert.equal(d.skipped.length, 0);
+    assert.ok(d.check.ok);
+    assert.equal(d.check.totalMg, G(26));
+  }
+  const [best, second] = res.dilutions;
+  assert.deepEqual(best.parts.map((p) => [p.source, p.mg]), [['mandatory', G(20)], ['lot', G(4.68)], ['ligature', G(1.32)]]);
+  assert.equal(best.parts[1].cutFromMg, G(10));
+  assert.deepEqual(second.parts.map((p) => [p.source, p.mg]), [['mandatory', G(10)], ['lot', G(13.18)], ['ligature', G(2.82)]]);
+  assert.equal(res.dilution, best);
+});
+
+test('too much gold even after cutting any one lot: leave a lot out, never split all lots', () => {
+  const res = S.solve({ massMg: G(26), target: 585, lots: [lot(1, 10, 999, true), lot(2, 10, 999, true), lot(3, 10, 585, true)] });
+  assert.ok(res.dilutions.length >= 1);
+  for (const d of res.dilutions) {
+    assert.equal(d.skipped.length, 1);
+    assert.equal(d.parts.filter((p) => p.source === 'lot').length, 1);
+    assert.ok(d.check.ok, d.check.text);
+    assert.equal(d.check.totalMg, G(26));
+  }
+  // equal lots (two 10 g of 999) do not produce duplicate cards
+  assert.equal(new Set(res.dilutions.map((d) => d.text)).size, res.dilutions.length);
+});
+
 test('fuzz: never NaN, never negative or zero grams, sums are exact', () => {
   let seed = 42;
   const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
@@ -237,7 +280,7 @@ test('fuzz: never NaN, never negative or zero grams, sums are exact', () => {
     }
     const L = rnd() < 0.2 ? 5 : 0;
     const res = S.solve({ massMg, target, lots, ligatureFineness: L });
-    const cards = res.status === 'ok' ? res.options : res.status === 'error' ? [res.dilution].filter(Boolean) : res.status === 'exact' ? [res] : [];
+    const cards = res.status === 'ok' ? res.options : res.status === 'error' ? res.dilutions : res.status === 'exact' ? [res] : [];
     for (const c of cards) {
       for (const p of c.parts) {
         assert.ok(Number.isInteger(p.mg) && p.mg > 0, `bad part ${JSON.stringify(p)} in ${JSON.stringify({ massMg, target, lots })}`);
