@@ -74,6 +74,12 @@
     background: none; border: 0; border-radius: 50%;
   }
   .icon-btn:active { background: var(--surface-2); }
+  .btn-clear {
+    height: var(--tap); padding: 0 12px;
+    background: none; border: 0; border-radius: 10px;
+    color: var(--accent); font-size: 16px; font-weight: 600;
+  }
+  .btn-clear:active { background: var(--surface-2); }
   .icon-btn svg { width: 24px; height: 24px; }
 
   main { max-width: 760px; margin: 0 auto; padding: 8px 16px 16px; }
@@ -233,8 +239,7 @@
   .part.whole .badge { font-size: 14px; background: var(--surface-2); color: var(--muted); }
   .skip { margin: 6px 0 0; font-size: 14px; color: var(--warn); font-weight: 600; }
   .check { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
-  .check .ok { color: var(--ok); font-weight: 700; }
-  .check .bad { color: var(--warn); font-weight: 700; }
+  .check.bad { color: var(--warn); font-weight: 600; }
   .note { margin: 6px 0 0; font-size: 14px; color: var(--danger); font-weight: 600; }
   .card.dim .parts, .card.dim .check { opacity: .5; }
   .card.warn { background: var(--warn-bg); border-color: transparent; }
@@ -295,6 +300,7 @@
 
 <header class="top">
   <h1 id="title">Расчёт</h1>
+  <button id="btnClear" class="btn-clear" type="button">Очистить</button>
   <button id="btnHistory" class="icon-btn" type="button" aria-label="История">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
   </button>
@@ -619,11 +625,10 @@
     }));
   }
 
+  // the check line is not shown; only warn when rounding to 0.01 g moves the fineness noticeably
   function checkEl(check) {
-    return el('p', { class: 'check' }, [
-      'Проверка: ' + check.text + ' ',
-      check.ok ? el('span', { class: 'ok', text: '✓' }) : el('span', { class: 'bad', text: '≈ округление' }),
-    ]);
+    if (check.ok) return null;
+    return el('p', { class: 'check bad', text: 'Из-за округления до 0.01 г проба выйдет ' + S.formatFineness(check.fineness) });
   }
 
   function optionCard(o, extraClass) {
@@ -829,6 +834,18 @@
 
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
+  // next flask: the current calculation goes to history, inputs are reset (target stays)
+  $('btnClear').addEventListener('click', () => {
+    if (state.tab === 'calc') {
+      commitHistory();
+      state.massStr = '';
+      state.lots = [newLot()];
+    } else {
+      state.mix = { rows: [newMixRow(), newMixRow()], ligStr: '' };
+    }
+    renderAll();
+    if (state.tab === 'calc') $('mass').focus();
+  });
   $('btnHistory').addEventListener('click', () => { renderHistory(); $('dlgHistory').showModal(); });
   $('btnSettings').addEventListener('click', () => $('dlgSettings').showModal());
   document.querySelectorAll('dialog').forEach((d) => {
