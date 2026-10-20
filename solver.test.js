@@ -15,6 +15,7 @@ const findOption = (res, finenesses) =>
   });
 
 const lot = (id, g, fineness, mandatory) => ({ id, mg: G(g), fineness, mandatory });
+const sumMg = (list) => list.reduce((acc, x) => acc + x.mg, 0);
 
 test('1) M=26, T=585, no stock: reference options', () => {
   const res = S.solve({ massMg: G(26), target: 585, lots: [] });
@@ -171,10 +172,25 @@ test('too much gold in mandatory lots (G_rem < 0): dilution', () => {
   assert.equal(S.formatGrams(res.dilution.parts[1].mg), '10.77');
 });
 
-test('mandatory lots too poor (F_rem > 999): message, no dilution', () => {
+test('mandatory lots too poor (F_rem > 999): cut the poor lot and fill with 999', () => {
   const res = S.solve({ massMg: G(26), target: 750, lots: [lot(1, 20, 585, true)] });
   assert.equal(res.code, 'FINENESS_UNREACHABLE');
-  assert.equal(res.dilution, null);
+  const d = res.dilution;
+  assert.deepEqual(d.parts.map((p) => [p.fineness, p.mg]), [[585, G(15.64)], [999, G(10.36)]]);
+  assert.equal(d.parts[0].cutFromMg, G(20));
+  assert.ok(d.check.ok && d.check.totalMg === G(26));
+  // same when the poor lots give exactly M
+  const exact = S.solve({ massMg: G(26), target: 750, lots: [lot(1, 26, 585, true)] });
+  assert.equal(exact.code, 'EXACT_MASS_WRONG_FINENESS');
+  assert.equal(exact.dilution.text, d.text);
+});
+
+test('poor lot cut: limited 999 in free stock is greyed with a shortage', () => {
+  const res = S.solve({ massMg: G(26), target: 750, lots: [lot(1, 20, 585, true), lot(2, 5, 999, false)] });
+  const d = res.dilutions.find((o) => o.fill && o.fill.fineness === 999);
+  assert.equal(d.feasible, false);
+  assert.equal(d.shortageMg, G(5.36));
+  assert.ok(d.note.includes('не хватает 5.36 г'), d.note);
 });
 
 test('ligature with non-zero fineness', () => {
@@ -266,8 +282,10 @@ test('too much gold even after cutting any one lot: leave a lot out, never split
   assert.equal(new Set(res.dilutions.map((d) => d.text)).size, res.dilutions.length);
 });
 
-const adj = (rows, target, extra) => S.adjustFineness(Object.assign({ rows: rows.map(([g, f]) => ({ mg: G(g), fineness: f })), target }, extra));
-const byFineness = (res, f) => res.options.find((o) => o.parts[0].fineness === f);
+const rowsOf = (list) => list.map(([g, f]) => ({ mg: G(g), fineness: f }));
+const adj = (rows, target, stock) => S.adjustFineness({ rows: rowsOf(rows), target, stock: rowsOf(stock || []) });
+const byFineness = (res, f) => res.options.find((o) => o.adds.length === 1 && o.adds[0].fineness === f);
+const addsOf = (o) => o.adds.map((a) => [a.fineness, S.formatGrams(a.mg)]);
 
 test('raise: 10 g of 357 to 585 with 750 or 999', () => {
   const res = adj([[10, 357]], 585);
@@ -283,22 +301,55 @@ test('raise: 10 g of 357 to 585 with 750 or 999', () => {
   assert.equal(with750.text, 'Добавить 13.82 г золота 750 → получится 23.82 г пробы 585');
 });
 
-test('raise: several low rows are blended first; custom 958 is offered', () => {
-  const res = adj([[10, 357], [8, 500]], 585, { customFineness: 958 });
+test('raise: several low rows are blended first', () => {
+  const res = adj([[10, 357], [8, 500]], 585);
   assert.ok(Math.abs(res.haveFineness - 420.6) < 0.1, String(res.haveFineness));
   assert.equal(res.haveMg, G(18));
-  const c = byFineness(res, 958);
-  assert.equal(c.source, 'custom');
-  near(c.addMg, (18 * (585 - 420.556)) / (958 - 585), '958');
+  near(byFineness(res, 999).addMg, (18 * (585 - 420.556)) / (999 - 585), '999');
   assert.ok(res.options.every((o) => o.check.ok));
 });
 
-test('raise: custom additive on the wrong side gives a hint, not an option', () => {
-  const res = adj([[10, 357]], 585, { customFineness: 500 });
-  assert.equal(res.customError, 'Добавка должна быть выше 585');
-  assert.ok(!byFineness(res, 500));
-  // 750 is not a raising option for target 750
-  assert.ok(!byFineness(adj([[10, 585]], 750), 750));
+test('raise from stock: single fineness that suffices + mix using all of the scarce 999', () => {
+  const res = adj([[10, 357]], 585, [[3, 999], [20, 750]]);
+  assert.equal(res.hasStock, true);
+  const stock = res.options.filter((o) => o.section === 'stock');
+  assert.deepEqual(stock.map(addsOf), [[[750, '13.82']], [[999, '3.00'], [750, '6.29']]]);
+  assert.equal(stock[1].totalMg, G(19.29));
+  assert.ok(res.options.every((o) => o.check.ok && o.adds.every((a) => a.mg <= a.limitMg)));
+  // a custom fineness is just another stock row (958)
+  const r958 = adj([[10, 357]], 585, [[50, 958]]);
+  assert.equal(S.formatGrams(byFineness(r958, 958).addMg), '6.11');
+});
+
+test('raise from stock: not enough -> raise part of the scrap, set the rest aside; or buy the rest', () => {
+  const res = adj([[10, 357]], 585, [[3, 999]]);
+  const partial = res.options.find((o) => o.kind === 'partial');
+  assert.equal(partial.section, 'stock');
+  assert.deepEqual(partial.base.map((p) => S.formatGrams(p.mg)), ['5.45']);
+  assert.deepEqual(partial.aside.map((p) => S.formatGrams(p.mg)), ['4.55']);
+  assert.equal(partial.totalMg, G(8.45));
+  assert.ok(partial.check.ok, partial.check.text);
+  assert.ok(partial.text.includes('отложить 4.55 г 357'), partial.text);
+
+  const topups = res.options.filter((o) => o.kind === 'topup');
+  assert.deepEqual(topups.map((o) => o.note), ['докупить 6.29 г 750', 'докупить 2.51 г 999']);
+  assert.ok(topups.every((o) => o.section === 'other' && o.check.ok));
+});
+
+test('raise from stock: partial takes the rows that need least first', () => {
+  const res = adj([[5, 500], [10, 357]], 585, [[2, 999]]);
+  const partial = res.options.find((o) => o.kind === 'partial');
+  assert.deepEqual(partial.base.map((p) => [p.fineness, S.formatGrams(p.mg)]), [[500, '5.00'], [357, '1.77']]);
+  assert.deepEqual(partial.aside.map((p) => [p.fineness, S.formatGrams(p.mg)]), [[357, '8.23']]);
+  assert.ok(partial.check.ok, partial.check.text);
+});
+
+test('lower from stock: poor scrap is used up before ligature', () => {
+  const res = adj([[10, 999]], 750, [[5, 375]]);
+  const mix = res.options.find((o) => o.kind === 'mix');
+  assert.deepEqual(addsOf(mix), [[375, '5.00'], [0, '0.82']]);
+  assert.equal(mix.totalMg, G(15.82));
+  assert.ok(mix.check.ok);
 });
 
 test('lower: too high fineness is diluted with ligature or 585', () => {
@@ -363,12 +414,17 @@ test('fuzz adjust: positive additions, achieved fineness equals target (0.5 perm
     const n = 1 + Math.floor(rnd() * 3);
     for (let k = 0; k < n; k++) rows.push({ mg: 500 + Math.floor(rnd() * 40000), fineness: 1 + Math.floor(rnd() * 999) });
     const target = rnd() < 0.5 ? 585 : 750;
-    const custom = rnd() < 0.5 ? 1 + Math.floor(rnd() * 999) : null;
-    const res = S.adjustFineness({ rows, target, customFineness: custom });
+    const stock = [];
+    const ns = Math.floor(rnd() * 4);
+    for (let k = 0; k < ns; k++) stock.push({ mg: 200 + Math.floor(rnd() * 20000), fineness: 1 + Math.floor(rnd() * 999) });
+    const res = S.adjustFineness({ rows, target, stock });
     if (res.status !== 'ok') continue;
     for (const o of res.options) {
-      assert.ok(Number.isInteger(o.addMg) && o.addMg > 0, JSON.stringify(o));
-      assert.equal(o.totalMg, res.haveMg + o.addMg);
+      assert.ok(o.adds.every((a) => Number.isInteger(a.mg) && a.mg > 0), JSON.stringify(o));
+      assert.ok(o.adds.every((a) => a.mg <= a.limitMg), 'stock limit: ' + o.text);
+      assert.ok(o.base.every((p) => Number.isInteger(p.mg) && p.mg > 0), JSON.stringify(o.base));
+      assert.equal(o.totalMg, sumMg(o.base) + o.addMg);
+      assert.equal(sumMg(o.base) + sumMg(o.aside), res.haveMg, 'base is used or set aside');
       assert.ok(!o.text.includes('NaN'), o.text);
       assert.ok(o.check.ok, o.check.text);
     }

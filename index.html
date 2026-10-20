@@ -223,9 +223,7 @@
   .switch[aria-checked="true"] .track { background: var(--accent); }
   .switch[aria-checked="true"] .thumb { transform: translateX(14px); }
 
-  .adj-custom { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
-  .adj-custom .lbl { font-size: 13px; color: var(--muted); line-height: 1.15; text-align: right; }
-  .adj-custom input.num { flex: 0 0 76px; width: 76px; }
+  .buy { margin: 6px 0 0; font-size: 14px; color: var(--accent); font-weight: 600; }
   .result-line { margin: 4px 0 0; font-size: 15px; color: var(--muted); }
   .result-line b { color: var(--text); }
   .results-title { margin: 12px 0 0; font-size: 15px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
@@ -381,17 +379,18 @@
     </div>
     <div class="block">
       <h2>Какая проба нужна</h2>
-      <div class="line">
-        <div class="line" id="adjTargetChips">
-          <button type="button" class="chip" data-chip="585" aria-pressed="false">585</button>
-          <button type="button" class="chip" data-chip="750" aria-pressed="false">750</button>
-        </div>
-        <label class="adj-custom grow">
-          <span class="lbl">Своя проба добавки</span>
-          <input id="adjCustom" class="num" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="958" aria-label="Своя проба добавки">
-        </label>
+      <div class="line" id="adjTargetChips">
+        <button type="button" class="chip" data-chip="585" aria-pressed="false">585</button>
+        <button type="button" class="chip" data-chip="750" aria-pressed="false">750</button>
       </div>
-      <p class="hint" id="adjCustomHint"></p>
+    </div>
+    <div class="block">
+      <div class="block-head">
+        <h2>Чем добавлять</h2>
+        <button id="addAdjStock" class="btn-add" type="button">+ Добавить</button>
+      </div>
+      <p class="block-hint">Сколько какого золота есть. Пусто — посчитаю для 750 и 999 без ограничений.</p>
+      <div id="adjStockRows"></div>
     </div>
     <div id="adjResult" aria-live="polite"></div>
   </section>
@@ -505,7 +504,7 @@
       adj: {
         rows: Array.isArray(adj.rows) && adj.rows.length ? adj.rows.map(newMixRow) : [newMixRow()],
         targetStr: TARGET_CHIPS.includes(adj.targetStr) ? adj.targetStr : TARGET_CHIPS[0],
-        customStr: typeof adj.customStr === 'string' ? adj.customStr : '',
+        stock: Array.isArray(adj.stock) && adj.stock.length ? adj.stock.map(newMixRow) : [newMixRow()],
       },
     };
   }
@@ -569,7 +568,7 @@
 
   // ---------- stock / mix rows ----------
   // withSwitch: stock row (toggle + "пробы в наличии"); otherwise a screen-2 row
-  function rowEl(item, withSwitch) {
+  function rowEl(item, withSwitch, fineLabel) {
     const grams = el('div', { class: 'grams' },
       el('input', { class: 'num', type: 'text', inputmode: 'decimal', autocomplete: 'off', enterkeyhint: 'done',
         placeholder: '0', 'aria-label': 'Граммы золота', 'data-k': 'grams', value: item.gramsStr }));
@@ -585,11 +584,11 @@
       ]));
     }
     ctl.push(el('button', { type: 'button', class: 'del', 'aria-label': 'Удалить строку', html: ICON_DEL }));
-    const row = el('div', { class: 'item', 'data-id': item.id }, [
+    const row = el('div', { class: 'item', 'data-id': item.id, 'data-label': fineLabel || null }, [
       el('div', { class: 'g-mass' }, [grams, el('span', { class: 'lbl', text: 'г золота' })]),
       el('div', { class: 'g-fine' }, [
         el('div', { class: 'seg' }, chips.concat(custom)),
-        el('span', { class: 'lbl', text: withSwitch ? 'пробы в наличии' : 'пробы' }),
+        el('span', { class: 'lbl', text: fineLabel || (withSwitch ? 'пробы в наличии' : 'пробы') }),
       ]),
       el('div', { class: 'g-ctl' }, ctl),
       el('p', { class: 'hint' }),
@@ -643,7 +642,7 @@
         } else {
           const fresh = makeItem();
           setList([fresh]);
-          row.replaceWith(rowEl(fresh, withSwitch));
+          row.replaceWith(rowEl(fresh, withSwitch, row.dataset.label));
         }
         onChange();
         return;
@@ -713,6 +712,9 @@
         o.skipped && o.skipped.length
           ? el('p', { class: 'skip', text: 'Не брать: ' + o.skipped.map((l) => S.formatGrams(l.mg) + ' г ' + S.formatFinenessShort(l.fineness)).join(', ') })
           : null,
+        o.leftover && o.leftover.mg > 0
+          ? el('p', { class: 'skip', text: 'Отложить: ' + S.formatGrams(o.leftover.mg) + ' г ' + S.formatFinenessShort(o.leftover.fineness) })
+          : null,
         checkEl(o.check),
       ]),
       copyButton(() => o.text, commitHistory),
@@ -732,7 +734,7 @@
     } else if (res.status === 'error') {
       out.push(messageCard(res.message, 'warn'));
       if (res.dilutions.length) {
-        out.push(el('div', { class: 'section-title', text: 'Можно так: обрезать лот и добавить лигатуру' }));
+        out.push(el('div', { class: 'section-title', text: 'Можно так: обрезать лот и добрать' }));
         res.dilutions.forEach((d) => out.push(optionCard(d)));
       }
     } else if (res.status === 'ok') {
@@ -859,6 +861,7 @@
   // ---------- screen "Довести пробу" ----------
   function renderAdjRows() {
     $('adjRows').replaceChildren(...state.adj.rows.map((r) => rowEl(r, false)));
+    $('adjStockRows').replaceChildren(...state.adj.stock.map((r) => rowEl(r, false, 'пробы в наличии')));
   }
 
   function updateAdjTargetUI() {
@@ -866,17 +869,31 @@
     document.querySelectorAll('#adjTargetChips .chip').forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.chip) === v)));
   }
 
+  function adjCard(o, target) {
+    const asideText = o.aside.map((l) => S.formatGrams(l.mg) + ' г ' + S.formatFinenessShort(l.fineness)).join(', ');
+    return el('article', { class: 'card' }, [
+      el('div', { class: 'card-main' }, [
+        recipeEl(o.parts),
+        el('p', { class: 'result-line' }, ['получится ', el('b', { text: S.formatGrams(o.totalMg) + ' г' }),
+          ' пробы ' + S.formatFinenessShort(target)]),
+        o.aside.length ? el('p', { class: 'skip', text: 'Отложить: ' + asideText }) : null,
+        o.note ? el('p', { class: 'buy', text: o.note[0].toUpperCase() + o.note.slice(1) }) : null,
+        checkEl(o.check),
+      ]),
+      copyButton(() => o.text),
+    ]);
+  }
+
   function recalcAdj() {
-    const custom = S.parseFineness(state.adj.customStr);
+    const readRows = (list) => list.map((x) => ({ mg: S.parseGrams(x.gramsStr), fineness: S.parseFineness(x.fineStr).value }));
     const target = S.parseNumber(state.adj.targetStr);
     const res = S.adjustFineness({
-      rows: state.adj.rows.map((x) => ({ mg: S.parseGrams(x.gramsStr), fineness: S.parseFineness(x.fineStr).value })),
+      rows: readRows(state.adj.rows),
+      stock: readRows(state.adj.stock),
       target,
-      customFineness: custom.value,
       ligatureFineness: ligatureFineness(),
     });
     saveState();
-    $('adjCustomHint').textContent = custom.error || (res.status === 'ok' && res.customError) || '';
     if (res.status === 'empty') { $('adjResult').replaceChildren(); return; }
 
     const haveF = S.formatFinenessShort(Math.round(res.haveFineness * 10) / 10);
@@ -886,16 +903,19 @@
       out.push(messageCard(res.message, 'good'));
     } else {
       if (res.direction === 'down') out.push(el('p', { class: 'info', text: 'Проба выше нужной: разбавить.' }));
-      out.push(el('div', { class: 'section-title', text: 'Варианты' }));
-      res.options.forEach((o) => out.push(el('article', { class: 'card' }, [
-        el('div', { class: 'card-main' }, [
-          recipeEl(o.parts),
-          el('p', { class: 'result-line' }, ['получится ', el('b', { text: S.formatGrams(o.totalMg) + ' г' }),
-            ' пробы ' + S.formatFinenessShort(target)]),
-          checkEl(o.check),
-        ]),
-        copyButton(() => o.text),
-      ])));
+      const section = (title, list) => {
+        if (!list.length) return;
+        out.push(el('div', { class: 'section-title', text: title }));
+        list.forEach((o) => out.push(adjCard(o, target)));
+      };
+      if (!res.hasStock) {
+        section('Варианты', res.options);
+      } else {
+        const own = res.options.filter((o) => o.section === 'stock');
+        if (!own.length) out.push(el('p', { class: 'empty-note', text: 'Из наличия не поднять: нужна проба выше ' + S.formatFinenessShort(target) + '.' }));
+        section('Из наличия', own);
+        section('Остальные варианты (докупить)', res.options.filter((o) => o.section === 'other'));
+      }
     }
     $('adjResult').replaceChildren(...out);
   }
@@ -917,7 +937,6 @@
     $('mass').value = state.massStr;
     $('ligFineness').value = state.ligStr;
     $('mixLig').value = state.mix.ligStr;
-    $('adjCustom').value = state.adj.customStr;
     updateTargetUI();
     updateAdjTargetUI();
     renderLots();
@@ -954,7 +973,12 @@
     updateAdjTargetUI();
     recalcAdj();
   });
-  $('adjCustom').addEventListener('input', (e) => { state.adj.customStr = e.target.value; recalcAdj(); });
+  bindList($('adjStockRows'), () => state.adj.stock, (v) => { state.adj.stock = v; }, newMixRow, false, recalcAdj);
+  $('addAdjStock').addEventListener('click', () => {
+    state.adj.stock.push(newMixRow());
+    renderAdjRows();
+    $('adjStockRows').lastElementChild.querySelector('[data-k="grams"]').focus();
+  });
 
   $('addLot').addEventListener('click', () => {
     state.lots.push(newLot());
@@ -978,7 +1002,7 @@
       state.massStr = '';
       state.lots = [newLot()];
     } else if (state.tab === 'adj') {
-      state.adj = { rows: [newMixRow()], targetStr: state.adj.targetStr, customStr: '' };
+      state.adj = { rows: [newMixRow()], targetStr: state.adj.targetStr, stock: [newMixRow()] };
     } else {
       state.mix = { rows: [newMixRow(), newMixRow()], ligStr: '' };
     }

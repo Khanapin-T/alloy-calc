@@ -263,15 +263,18 @@
     );
   }
 
-  // Too much metal/gold in the "whole lot" rows: every lot is either taken whole, cut (exactly one)
-  // or left out, and the rest is ligature. Options that leave out the fewest lots win.
-  //   y = (G' - R'*L/1000) / ((f_k - L)/1000), where R', G' = mass and gold left after the whole lots
+  // Whole-lot rows that do not fit as they are (too much metal, too rich or too poor): every lot is
+  // taken whole, cut (exactly one) or left out, and the rest is ONE fill material from the pool
+  // (ligature, a free stock lot or a reference fineness). Options that leave out the fewest lots win.
+  //   mass: W + y + a = M,  gold: G_W + y*f_k + a*f_A = M*T  =>  y = (R'*f_A - G') / (f_A - f_k)
+  //   where R', G' = mass and gold still needed after the whole lots
   const CUT_SEARCH_MAX_LOTS = 10;
+  const FILL_RANK = { ligature: 0, stock: 1, reference: 2 };
 
-  function cutOptions(massMg, target, mandatory, ligatureFineness) {
-    const L = ligatureFineness;
+  function cutOptions(massMg, target, mandatory, pool) {
     const n = mandatory.length;
     if (n === 0 || n > CUT_SEARCH_MAX_LOTS) return [];
+    const goalGold = (massMg * target) / 1000;
     const found = [];
     mandatory.forEach((cut, k) => {
       const others = mandatory.filter((_, i) => i !== k);
@@ -279,31 +282,47 @@
         const whole = others.filter((_, i) => mask & (1 << i));
         const skipped = others.filter((_, i) => !(mask & (1 << i)));
         const restMg = massMg - sumMg(whole);
-        const restGold = (massMg * target) / 1000 - goldOf(whole);
-        if (restMg <= 0 || cut.fineness <= L) continue;
-        const exact = (restGold * 1000 - restMg * L) / (cut.fineness - L);
-        if (!(exact > 0) || exact > cut.mg) continue;
-        const y = Math.min(round10(exact), cut.mg);
-        const ligMg = restMg - y;
-        if (y <= 0 || ligMg < 0) continue;
-        const parts = mandatoryParts(whole);
-        parts.push({ fineness: cut.fineness, mg: y, source: 'lot', wholeLot: false, cutFromMg: cut.mg, lotIds: [cut.id] });
-        if (ligMg > 0) parts.push({ fineness: L, mg: ligMg, source: 'ligature', wholeLot: false, lotIds: [] });
-        found.push({
-          parts,
-          ligMg,
-          skipped: skipped.map((l) => ({ fineness: l.fineness, mg: l.mg, lotIds: [l.id] })),
-          check: checkLine(parts, target),
-          text: recipeText(parts),
-        });
+        const restGold = goalGold - goldOf(whole);
+        if (restMg <= 0) continue;
+        for (const fill of pool) {
+          if (sameFineness(fill.fineness, cut.fineness)) continue;
+          const exact = ((restMg * fill.fineness) / 1000 - restGold) / ((fill.fineness - cut.fineness) / 1000);
+          if (!(exact > 0) || exact > cut.mg) continue;
+          const build = (y) => {
+            const parts = mandatoryParts(whole);
+            parts.push({ fineness: cut.fineness, mg: y, source: 'lot', wholeLot: false, cutFromMg: cut.mg, lotIds: [cut.id] });
+            const fillMg = restMg - y;
+            if (fillMg > 0) {
+              parts.push({ fineness: fill.fineness, mg: fillMg, source: fill.source, wholeLot: false, limitMg: fill.limitMg, lotIds: fill.lotIds });
+            }
+            return { parts, fillMg, check: checkLine(parts, target) };
+          };
+          let opt = build(Math.min(round10(exact), cut.mg));
+          if (!opt.check.ok) opt = build(Math.min(Math.round(exact), cut.mg));
+          if (opt.parts.some((p) => p.mg <= 0) || opt.fillMg < 0) continue;
+          const shortMg = opt.fillMg > fill.limitMg ? opt.fillMg - fill.limitMg : 0;
+          found.push({
+            parts: opt.parts,
+            fill: opt.fillMg > 0 ? fill : null,
+            fillMg: opt.fillMg,
+            skipped: skipped.map((l) => ({ fineness: l.fineness, mg: l.mg, lotIds: [l.id] })),
+            leftover: { fineness: cut.fineness, mg: cut.mg - opt.parts.find((p) => p.source === 'lot').mg, lotIds: [cut.id] },
+            feasible: shortMg === 0,
+            shortageMg: shortMg,
+            note: shortMg ? 'не хватает ' + formatGrams(shortMg) + ' г (проба ' + formatFinenessShort(fill.fineness) + ')' : '',
+            check: opt.check,
+            text: recipeText(opt.parts),
+          });
+        }
       }
     });
     if (!found.length) return [];
     const minSkipped = Math.min(...found.map((o) => o.skipped.length));
+    const rank = (o) => (o.fill ? FILL_RANK[o.fill.source] : -1);
     const seen = new Set();
     return found
       .filter((o) => o.skipped.length === minSkipped)
-      .sort((a, b) => a.ligMg - b.ligMg)
+      .sort((a, b) => Number(b.feasible) - Number(a.feasible) || rank(a) - rank(b) || a.fillMg - b.fillMg)
       .filter((o) => {
         // lots with equal mass and fineness give identical recipes
         const key = o.text + '|' + o.skipped.map((l) => l.mg + '@' + l.fineness).sort().join(',');
@@ -340,15 +359,16 @@
   }
 
   // all dilution suggestions, best first
-  function dilutionOptions(massMg, target, mandatory, ligatureFineness) {
-    const cuts = cutOptions(massMg, target, mandatory, ligatureFineness);
+  function dilutionOptions(massMg, target, mandatory, ligatureFineness, pool) {
+    const fillPool = pool || [{ fineness: ligatureFineness, limitMg: Infinity, source: 'ligature', lotIds: [] }];
+    const cuts = cutOptions(massMg, target, mandatory, fillPool);
     if (cuts.length) return cuts;
     const blend = blendDilution(massMg, target, mandatory, ligatureFineness);
     return blend ? [blend] : [];
   }
 
-  function dilution(massMg, target, mandatory, ligatureFineness) {
-    return dilutionOptions(massMg, target, mandatory, ligatureFineness)[0] || null;
+  function dilution(massMg, target, mandatory, ligatureFineness, pool) {
+    return dilutionOptions(massMg, target, mandatory, ligatureFineness, pool)[0] || null;
   }
 
   // ---------- screen 1 ----------
@@ -368,9 +388,10 @@
     const fOn = blendFineness(mandatory);
     const rem = remainder(massMg, target, mandatory);
     const fmtOn = formatGrams(onMg) + ' г пробы ' + formatFineness(fOn);
+    const pool = buildPool(available, L, hasStock);
 
     const fail = (code, message) => {
-      const dilutions = dilutionOptions(massMg, target, mandatory, L);
+      const dilutions = dilutionOptions(massMg, target, mandatory, L, pool);
       return { status: 'error', code, message, dilution: dilutions[0] || null, dilutions };
     };
 
@@ -396,7 +417,7 @@
         'EXACT_MASS_WRONG_FINENESS',
         'Лоты «Весь в плавку» дают ровно ' + formatGrams(massMg) + ' г, но проба ' + formatFineness(fOn) +
           ' вместо ' + formatFinenessShort(target) + '.' +
-          (fOn < target ? ' Нужен металл пробы выше ' + formatFinenessShort(target) + '.' : '')
+          ''
       );
     }
     if (rem.goldMg < 0 || rem.fineness < L - TOL) {
@@ -409,12 +430,10 @@
     if (rem.fineness > MAX_FINENESS + TOL) {
       return fail(
         'FINENESS_UNREACHABLE',
-        'Лоты «Весь в плавку» слишком низкой пробы: остаток ' + formatGrams(rem.mg) + ' г должен быть пробы ' +
-          formatFineness(rem.fineness) + ', а это выше 999. Уберите часть лотов из плавки.'
+        'Лоты «Весь в плавку» (' + fmtOn + ') слишком низкой пробы: целиком их не взять, даже добавив 999.'
       );
     }
 
-    const pool = buildPool(available, L, hasStock);
     const options = enumerateOptions(rem, pool, mandatory, target).map((o) => {
       o.section = !hasStock ? 'all' : o.reference ? 'other' : o.feasible ? 'stock' : 'short';
       return o;
@@ -449,69 +468,165 @@
 
   // ---------- screen "Довести пробу" ----------
 
-  // Have some metal (one or more rows of any fineness), want fineness T. The final mass is free:
-  // add Y of another fineness, Y = m*(T - f)/(f_add - T), total = m + Y.
-  // Below the target: add richer gold (750, 999, custom). Above it: ligature or 585 (or custom).
+  // Have some metal (one or more rows of any fineness), want fineness T; the final mass is free.
+  // Additions come from stock (rows with grams = limits), ligature (lowering only, unlimited)
+  // and reference finenesses (unlimited, "наличие не указано"). Per gram an addition of fineness f
+  // moves the balance by |f - T|; the base needs m*|T - f_base| in total.
   const RAISE_WITH = [750, 999];
   const LOWER_WITH = [585];
 
-  // input: { rows: [{ mg, fineness }], target, customFineness, ligatureFineness }
+  // input: { rows: [{ mg, fineness }], stock: [{ mg, fineness }], target, ligatureFineness }
   function adjustFineness(input) {
     const target = input && input.target;
     const L = input && Number.isFinite(input.ligatureFineness) ? input.ligatureFineness : 0;
     if (!Number.isFinite(target) || target < MIN_FINENESS || target > MAX_FINENESS) return { status: 'empty' };
-    const have = validLots(input.rows);
-    const haveMg = sumMg(have);
+    const base = validLots((input.rows || []).map((r, i) => Object.assign({ id: 'b' + i }, r)));
+    const haveMg = sumMg(base);
     if (haveMg <= 0) return { status: 'empty' };
-    const haveGoldMg = goldOf(have);
-    const f = (haveGoldMg / haveMg) * 1000;
-    const base = { haveMg, haveGoldMg, haveFineness: f };
-    if (sameFineness(f, target)) {
-      return Object.assign({ status: 'exact', message: 'Добавлять ничего не нужно: проба уже ' + formatFineness(f) + '.' }, base);
+    const haveGoldMg = goldOf(base);
+    const f0 = (haveGoldMg / haveMg) * 1000;
+    const head = { haveMg, haveGoldMg, haveFineness: f0 };
+    if (sameFineness(f0, target)) {
+      return Object.assign({ status: 'exact', message: 'Добавлять ничего не нужно: проба уже ' + formatFineness(f0) + '.' }, head);
     }
 
-    const up = f < target;
-    const fits = (a) => (up ? a - target > TOL : target - a > TOL);
-    const candidates = up
-      ? RAISE_WITH.filter(fits).map((a) => ({ fineness: a, source: 'reference' }))
-      : [{ fineness: L, source: 'ligature' }].filter((c) => fits(c.fineness))
-          .concat(LOWER_WITH.filter(fits).map((a) => ({ fineness: a, source: 'reference' })));
+    const up = f0 < target;
+    const gain = (f) => (up ? f - target : target - f); // > 0: moves the blend toward the target
+    const cost = (f) => -gain(f); // per gram of base metal
+    const need = base.reduce((acc, r) => acc + r.mg * cost(r.fineness), 0); // > 0
 
-    let customError = null;
-    const custom = input.customFineness;
-    if (Number.isFinite(custom)) {
-      if (!fits(custom)) {
-        customError = up ? 'Добавка должна быть выше ' + formatFinenessShort(target)
-          : 'Добавка должна быть ниже ' + formatFinenessShort(target);
-      } else if (!candidates.some((c) => sameFineness(c.fineness, custom))) {
-        candidates.push({ fineness: custom, source: 'custom' });
+    const stockLots = validLots((input.stock || []).map((r, i) => Object.assign({ id: 's' + i }, r)));
+    const hasStock = stockLots.length > 0;
+    const merged = buildPool(stockLots, L, true).filter((m) => m.source === 'stock');
+    const own = merged.filter((m) => gain(m.fineness) > TOL);
+    if (!up && gain(L) > TOL) own.push({ fineness: L, limitMg: Infinity, source: 'ligature', lotIds: [] });
+    const refs = (up ? RAISE_WITH : LOWER_WITH)
+      .filter((f) => gain(f) > TOL && !merged.some((m) => sameFineness(m.fineness, f)) && !sameFineness(f, L))
+      .map((f) => ({ fineness: f, limitMg: Infinity, source: 'reference', lotIds: [] }));
+
+    const basePart = (r, mg) => ({ fineness: r.fineness, mg, source: 'base', wholeLot: mg === r.mg && base.length > 1,
+      cutFromMg: mg < r.mg ? r.mg : undefined, lotIds: [r.id] });
+    const addPart = (m, mg) => ({ fineness: m.fineness, mg, source: m.source === 'ligature' ? 'ligature' : 'lot',
+      wholeLot: false, limitMg: m.limitMg, ownMg: m.ownMg, from: m.source, lotIds: m.lotIds });
+
+    // Greedy fill of `amount` with materials in the given order (limits respected). The last one
+    // is rounded to 0.01 g, or to 0.001 g if 0.01 g misses the target. Null if not enough.
+    const fillWith = (usedBase, amount, mats) => {
+      const adds = [];
+      let rest = amount;
+      for (const m of mats) {
+        if (rest <= 0) break;
+        const capacity = m.limitMg * gain(m.fineness);
+        if (capacity < rest) {
+          adds.push({ m, mg: m.limitMg });
+          rest -= capacity;
+        } else {
+          adds.push({ m, exact: rest / gain(m.fineness) });
+          rest = 0;
+        }
       }
-    }
+      if (rest > 0) return null;
+      const make = (round) => adds.map((a) => addPart(a.m, a.mg !== undefined ? a.mg : Math.min(round(a.exact), a.m.limitMg)));
+      let parts = make(round10);
+      if (!checkLine(usedBase.concat(parts), target).ok || parts.some((p) => p.mg <= 0)) parts = make(Math.round);
+      return parts.some((p) => p.mg <= 0) ? null : parts;
+    };
 
+    const fullBase = base.map((r) => basePart(r, r.mg));
     const options = [];
-    for (const c of candidates) {
-      const exact = (haveMg * (target - f)) / (c.fineness - target);
-      const make = (mg) => ({ fineness: c.fineness, mg, source: c.source === 'ligature' ? 'ligature' : 'lot', wholeLot: false, lotIds: [] });
-      // 0.01 g by default; small pieces fall back to 0.001 g when 0.01 g would miss the target
-      let add = make(round10(exact));
-      let check = checkLine(have.concat([add]), target);
-      if (!check.ok || add.mg <= 0) {
-        add = make(Math.round(exact));
-        check = checkLine(have.concat([add]), target);
-      }
-      if (add.mg <= 0) continue;
-      const addMg = add.mg;
-      const totalMg = haveMg + addMg;
+    const seen = new Set();
+    const push = (kind, section, usedBase, addsIn, aside, note) => {
+      const adds = addsIn.slice().sort((a, b) => (a.source === 'ligature') - (b.source === 'ligature') || b.fineness - a.fineness);
+      const all = usedBase.concat(adds);
+      const totalMg = sumMg(all);
+      const T = formatFinenessShort(target);
+      const text = aside.length
+        ? 'Взять ' + usedBase.map(partText).join(' + ') + ', добавить ' + adds.map(partText).join(' + ') +
+          ' → получится ' + formatGrams(totalMg) + ' г пробы ' + T +
+          '; отложить ' + aside.map((a) => formatGrams(a.mg) + ' г ' + formatFinenessShort(a.fineness)).join(', ')
+        : 'Добавить ' + adds.map(partText).join(' + ') + ' → получится ' + formatGrams(totalMg) + ' г пробы ' + T;
+      if (seen.has(text)) return;
+      seen.add(text);
       options.push({
-        parts: [add],
-        source: c.source,
-        addMg,
+        kind,
+        section: hasStock ? section : 'all',
+        parts: (base.length > 1 || aside.length ? usedBase : []).concat(adds),
+        base: usedBase,
+        adds,
+        aside,
+        addMg: sumMg(adds),
         totalMg,
-        check,
-        text: 'Добавить ' + partText(add) + ' → получится ' + formatGrams(totalMg) + ' г пробы ' + formatFinenessShort(target),
+        note: note || '',
+        check: checkLine(all, target),
+        text,
       });
+    };
+
+    // own stock: each material alone, then mixes (richest first = least metal, poorest first)
+    for (const m of own) {
+      const adds = fillWith(fullBase, need, [m]);
+      if (adds) push('single', 'stock', fullBase, adds, []);
     }
-    return Object.assign({ status: 'ok', direction: up ? 'up' : 'down', options, customError }, base);
+    if (own.length > 1) {
+      const byGain = own.slice().sort((a, b) => gain(b.fineness) - gain(a.fineness));
+      for (const order of [byGain, byGain.slice().reverse()]) {
+        const adds = fillWith(fullBase, need, order);
+        if (adds) push('mix', 'stock', fullBase, adds, []);
+      }
+    }
+
+    // not enough stock: raise only part of the base (rows that need least first), set the rest aside,
+    // or use all own stock and top up with a reference fineness
+    const capacity = own.reduce((acc, m) => acc + m.limitMg * gain(m.fineness), 0);
+    if (own.length && capacity < need) {
+      const fullOwn = own.map((m) => addPart(m, m.limitMg));
+      const order = base.slice().sort((a, b) => cost(a.fineness) - cost(b.fineness));
+      const build = (round) => {
+        let budget = capacity;
+        const used = [];
+        const aside = [];
+        for (const r of order) {
+          const c = cost(r.fineness);
+          if (c <= 0 || r.mg * c <= budget) {
+            used.push(basePart(r, r.mg));
+            budget -= r.mg * c;
+            continue;
+          }
+          const x = Math.min(round(budget / c), r.mg);
+          budget = 0;
+          if (x > 0) used.push(basePart(r, x));
+          if (r.mg - x > 0) aside.push({ fineness: r.fineness, mg: r.mg - x, lotIds: [r.id] });
+        }
+        return { used, aside };
+      };
+      let partial = build(round10);
+      if (!checkLine(partial.used.concat(fullOwn), target).ok) partial = build(Math.round);
+      if (partial.used.length && partial.aside.length) push('partial', 'stock', partial.used, fullOwn, partial.aside);
+
+      // all own stock + buy the rest of one fineness (also more of a fineness that is in stock)
+      for (const f of up ? RAISE_WITH : LOWER_WITH) {
+        if (gain(f) <= TOL || sameFineness(f, L)) continue;
+        const inStock = own.find((m) => sameFineness(m.fineness, f));
+        const limited = own.filter((m) => m !== inStock);
+        const extra = inStock
+          ? Object.assign({}, inStock, { limitMg: Infinity, ownMg: inStock.limitMg })
+          : { fineness: f, limitMg: Infinity, ownMg: 0, source: 'reference', lotIds: [] };
+        const adds = fillWith(fullBase, need, limited.concat([extra]));
+        if (!adds) continue;
+        const bought = adds.find((a) => a.ownMg !== undefined);
+        const buyMg = bought ? bought.mg - bought.ownMg : 0;
+        if (buyMg <= 0) continue;
+        push('topup', 'other', fullBase, adds, [], 'докупить ' + formatGrams(buyMg) + ' г ' + formatFinenessShort(f));
+      }
+    }
+
+    // reference finenesses alone
+    for (const ref of refs) {
+      const adds = fillWith(fullBase, need, [ref]);
+      if (adds) push('single', 'other', fullBase, adds, [], hasStock ? 'докупить ' + formatGrams(adds[0].mg) + ' г ' + formatFinenessShort(ref.fineness) : '');
+    }
+
+    return Object.assign({ status: 'ok', direction: up ? 'up' : 'down', hasStock, options }, head);
   }
 
   // ---------- history ----------
