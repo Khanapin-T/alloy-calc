@@ -1060,6 +1060,13 @@
   });
 
   renderAll();
+
+  // offline support (service workers need http(s), not file://)
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* app still works online */ });
+    });
+  }
 })();
 </script>
 </body>
