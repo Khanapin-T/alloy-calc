@@ -5,8 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Сплав</title>
 <meta name="description" content="Калькулятор сплава для ювелирной мастерской">
-<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#14130f" media="(prefers-color-scheme: dark)">
+<script>
+  // apply the saved theme before first paint (no flash)
+  try {
+    const t = localStorage.getItem('alloyCalc.theme.v1');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) { /* storage unavailable */ }
+</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Сплав">
@@ -14,14 +21,15 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
+  /* light: plain white; dark: follows the phone unless a theme is picked in settings (data-theme) */
   :root {
-    color-scheme: light dark;
-    --bg: #f5f3ee;
+    color-scheme: light;
+    --bg: #ffffff;
     --surface: #ffffff;
-    --surface-2: #ece8df;
-    --text: #1d1b16;
-    --muted: #6b665a;
-    --border: #d6d0c2;
+    --surface-2: #f1f1f3;
+    --text: #141414;
+    --muted: #6b6b70;
+    --border: #dcdce0;
     --accent: #9a6a12;
     --accent-text: #ffffff;
     --ok: #2f7d43;
@@ -32,7 +40,8 @@
     --tap: 48px;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
       --bg: #14130f;
       --surface: #1f1d18;
       --surface-2: #2b2821;
@@ -46,6 +55,21 @@
       --warn-bg: #33270f;
       --danger: #ff8a80;
     }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #14130f;
+    --surface: #1f1d18;
+    --surface-2: #2b2821;
+    --text: #f1ede4;
+    --muted: #a39d8f;
+    --border: #3b372e;
+    --accent: #e2b24c;
+    --accent-text: #1a1408;
+    --ok: #73d08a;
+    --warn: #f2bb5c;
+    --warn-bg: #33270f;
+    --danger: #ff8a80;
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -298,7 +322,10 @@
     background: var(--surface-2); border: 0; border-radius: 10px;
   }
   .hist-item .t { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
-  label.setting { display: block; margin-bottom: 8px; font-size: 15px; }
+  label.setting, .setting { display: block; margin-bottom: 12px; font-size: 15px; }
+  .theme-seg { display: flex; margin-top: 6px; }
+  .theme-seg .chip { flex: 1; font-size: 15px; padding: 0 6px; }
+  .theme-seg .chip:last-child { border-right: 0; }
   label.setting input { margin-top: 6px; }
 </style>
 </head>
@@ -410,6 +437,13 @@
     </button>
   </div>
   <div class="dlg-body">
+    <div class="setting">Тема
+      <div class="seg theme-seg" id="themeSeg" role="group" aria-label="Тема">
+        <button type="button" class="chip" data-theme-opt="light" aria-pressed="false">Светлая</button>
+        <button type="button" class="chip" data-theme-opt="dark" aria-pressed="false">Тёмная</button>
+        <button type="button" class="chip" data-theme-opt="auto" aria-pressed="false" title="Как в телефоне">Авто</button>
+      </div>
+    </div>
     <label class="setting">Проба лигатуры
       <input id="ligFineness" class="num" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
     </label>
@@ -426,6 +460,7 @@
   const TARGET_CHIPS = ['585', '750'];
   const KEY_STATE = 'alloyCalc.state.v1';
   const KEY_HISTORY = 'alloyCalc.history.v1';
+  const KEY_THEME = 'alloyCalc.theme.v1';
   const HISTORY_DELAY_MS = 3000;
 
   const ICON_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
@@ -967,6 +1002,32 @@
     recalc();
     recalcMix();
     recalcAdj();
+  });
+
+  // ---------- theme ----------
+  const THEME_BAR = { light: '#ffffff', dark: '#14130f' };
+  function applyTheme(choice) {
+    const root = document.documentElement;
+    if (choice === 'light' || choice === 'dark') root.dataset.theme = choice;
+    else delete root.dataset.theme;
+    // status bar color: forced theme overrides both media-specific metas
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+      const media = m.getAttribute('media') || '';
+      m.setAttribute('content', THEME_BAR[choice] || (media.includes('dark') ? THEME_BAR.dark : THEME_BAR.light));
+    });
+    document.querySelectorAll('#themeSeg .chip').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.themeOpt === choice)));
+  }
+  let themeChoice = 'auto';
+  try { themeChoice = localStorage.getItem(KEY_THEME) || 'auto'; } catch (e) { /* storage unavailable */ }
+  applyTheme(themeChoice);
+  $('themeSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-theme-opt]');
+    if (!btn) return;
+    themeChoice = btn.dataset.themeOpt;
+    try {
+      if (themeChoice === 'auto') localStorage.removeItem(KEY_THEME); else localStorage.setItem(KEY_THEME, themeChoice);
+    } catch (e2) { /* storage unavailable */ }
+    applyTheme(themeChoice);
   });
 
   // don't lose a pending history entry when the app goes to background
