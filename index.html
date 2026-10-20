@@ -63,11 +63,11 @@
   .top {
     position: sticky; top: 0; z-index: 5;
     display: flex; align-items: center; gap: 4px;
-    padding: env(safe-area-inset-top) 8px 0 16px;
+    padding: env(safe-area-inset-top) 4px 0 16px;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
   }
-  .top h1 { flex: 1; margin: 0; font-size: 20px; font-weight: 650; }
+  .top h1 { flex: 1; min-width: 0; margin: 0; font-size: 18px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .icon-btn {
     width: var(--tap); height: var(--tap);
     display: grid; place-items: center;
@@ -75,7 +75,7 @@
   }
   .icon-btn:active { background: var(--surface-2); }
   .btn-clear {
-    height: var(--tap); padding: 0 12px;
+    height: var(--tap); padding: 0 8px;
     background: none; border: 0; border-radius: 10px;
     color: var(--accent); font-size: 16px; font-weight: 600;
   }
@@ -199,6 +199,11 @@
   .switch[aria-checked="true"] .track { background: var(--accent); }
   .switch[aria-checked="true"] .thumb { transform: translateX(14px); }
 
+  .adj-custom { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .adj-custom .lbl { font-size: 13px; color: var(--muted); line-height: 1.15; text-align: right; }
+  .adj-custom input.num { flex: 0 0 76px; width: 76px; }
+  .result-line { margin: 4px 0 0; font-size: 15px; color: var(--muted); }
+  .result-line b { color: var(--text); }
   .results-title { margin: 12px 0 0; font-size: 15px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
 
   .section-title { margin: 10px 0 6px; font-size: 15px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
@@ -268,7 +273,8 @@
   .tabs button {
     flex: 1; height: 56px;
     background: none; border: 0;
-    font-size: 16px; font-weight: 600; color: var(--muted);
+    padding: 0 4px;
+    font-size: 14px; font-weight: 600; color: var(--muted); white-space: nowrap;
     border-top: 3px solid transparent;
   }
   .tabs button[aria-current="page"] { color: var(--accent); border-top-color: var(--accent); }
@@ -337,6 +343,32 @@
     <div id="results" aria-live="polite"></div>
   </section>
 
+  <section id="screenAdj" hidden>
+    <div class="block">
+      <div class="block-head">
+        <h2>Что есть</h2>
+        <button id="addAdj" class="btn-add" type="button">+ Добавить</button>
+      </div>
+      <p class="block-hint">Металл, пробу которого надо довести. Можно несколько кусков разной пробы.</p>
+      <div id="adjRows"></div>
+    </div>
+    <div class="block">
+      <h2>Какая проба нужна</h2>
+      <div class="line">
+        <div class="line" id="adjTargetChips">
+          <button type="button" class="chip" data-chip="585" aria-pressed="false">585</button>
+          <button type="button" class="chip" data-chip="750" aria-pressed="false">750</button>
+        </div>
+        <label class="adj-custom grow">
+          <span class="lbl">Своя проба добавки</span>
+          <input id="adjCustom" class="num" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="958" aria-label="Своя проба добавки">
+        </label>
+      </div>
+      <p class="hint" id="adjCustomHint"></p>
+    </div>
+    <div id="adjResult" aria-live="polite"></div>
+  </section>
+
   <section id="screenMix" hidden>
     <div class="block">
       <div class="block-head">
@@ -355,6 +387,7 @@
 
 <nav class="tabs">
   <button type="button" data-tab="calc" aria-current="page">Расчёт</button>
+  <button type="button" data-tab="adj">Довести пробу</button>
   <button type="button" data-tab="mix">Что получится</button>
 </nav>
 
@@ -423,8 +456,9 @@
   function loadState() {
     const s = store.get(KEY_STATE, null) || {};
     const mix = s.mix || {};
+    const adj = s.adj || {};
     return {
-      tab: s.tab === 'mix' ? 'mix' : 'calc',
+      tab: ['calc', 'adj', 'mix'].includes(s.tab) ? s.tab : 'calc',
       massStr: typeof s.massStr === 'string' ? s.massStr : '',
       targetStr: TARGET_CHIPS.includes(s.targetStr) ? s.targetStr : TARGET_CHIPS[0],
       ligStr: typeof s.ligStr === 'string' ? s.ligStr : '0',
@@ -432,6 +466,11 @@
       mix: {
         rows: Array.isArray(mix.rows) && mix.rows.length ? mix.rows.map(newMixRow) : [newMixRow(), newMixRow()],
         ligStr: typeof mix.ligStr === 'string' ? mix.ligStr : '',
+      },
+      adj: {
+        rows: Array.isArray(adj.rows) && adj.rows.length ? adj.rows.map(newMixRow) : [newMixRow()],
+        targetStr: TARGET_CHIPS.includes(adj.targetStr) ? adj.targetStr : TARGET_CHIPS[0],
+        customStr: typeof adj.customStr === 'string' ? adj.customStr : '',
       },
     };
   }
@@ -782,12 +821,57 @@
     );
   }
 
+  // ---------- screen "Довести пробу" ----------
+  function renderAdjRows() {
+    $('adjRows').replaceChildren(...state.adj.rows.map((r) => rowEl(r, false)));
+  }
+
+  function updateAdjTargetUI() {
+    const v = S.parseNumber(state.adj.targetStr);
+    document.querySelectorAll('#adjTargetChips .chip').forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.chip) === v)));
+  }
+
+  function recalcAdj() {
+    const custom = S.parseFineness(state.adj.customStr);
+    const target = S.parseNumber(state.adj.targetStr);
+    const res = S.adjustFineness({
+      rows: state.adj.rows.map((x) => ({ mg: S.parseGrams(x.gramsStr), fineness: S.parseFineness(x.fineStr).value })),
+      target,
+      customFineness: custom.value,
+      ligatureFineness: ligatureFineness(),
+    });
+    saveState();
+    $('adjCustomHint').textContent = custom.error || (res.status === 'ok' && res.customError) || '';
+    if (res.status === 'empty') { $('adjResult').replaceChildren(); return; }
+
+    const haveF = S.formatFinenessShort(Math.round(res.haveFineness * 10) / 10);
+    const out = [el('h2', { class: 'results-title',
+      text: 'Что добавить к ' + S.formatGramsShort(res.haveMg) + ' г пробы ' + haveF + ', чтобы стало ' + S.formatFinenessShort(target) })];
+    if (res.status === 'exact') {
+      out.push(messageCard(res.message, 'good'));
+    } else {
+      if (res.direction === 'down') out.push(el('p', { class: 'info', text: 'Проба выше нужной: разбавить.' }));
+      out.push(el('div', { class: 'section-title', text: 'Варианты' }));
+      res.options.forEach((o) => out.push(el('article', { class: 'card' }, [
+        el('div', { class: 'card-main' }, [
+          recipeEl(o.parts),
+          el('p', { class: 'result-line' }, ['получится ', el('b', { text: S.formatGrams(o.totalMg) + ' г' }),
+            ' пробы ' + S.formatFinenessShort(target)]),
+          checkEl(o.check),
+        ]),
+        copyButton(() => o.text),
+      ])));
+    }
+    $('adjResult').replaceChildren(...out);
+  }
+
   // ---------- tabs / dialogs ----------
   function showTab(tab) {
     state.tab = tab;
     $('screenCalc').hidden = tab !== 'calc';
+    $('screenAdj').hidden = tab !== 'adj';
     $('screenMix').hidden = tab !== 'mix';
-    $('title').textContent = tab === 'calc' ? 'Расчёт' : 'Что получится';
+    $('title').textContent = { calc: 'Расчёт', adj: 'Довести пробу', mix: 'Что получится' }[tab];
     document.querySelectorAll('.tabs button').forEach((b) => {
       if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -798,12 +882,16 @@
     $('mass').value = state.massStr;
     $('ligFineness').value = state.ligStr;
     $('mixLig').value = state.mix.ligStr;
+    $('adjCustom').value = state.adj.customStr;
     updateTargetUI();
+    updateAdjTargetUI();
     renderLots();
     renderMixRows();
+    renderAdjRows();
     showTab(state.tab);
     recalc();
     recalcMix();
+    recalcAdj();
   }
 
   // ---------- wiring ----------
@@ -818,6 +906,20 @@
 
   bindList($('lots'), () => state.lots, (v) => { state.lots = v; }, newLot, true, recalc);
   bindList($('mixRows'), () => state.mix.rows, (v) => { state.mix.rows = v; }, newMixRow, false, recalcMix);
+  bindList($('adjRows'), () => state.adj.rows, (v) => { state.adj.rows = v; }, newMixRow, false, recalcAdj);
+  $('addAdj').addEventListener('click', () => {
+    state.adj.rows.push(newMixRow());
+    renderAdjRows();
+    $('adjRows').lastElementChild.querySelector('[data-k="grams"]').focus();
+  });
+  $('adjTargetChips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    state.adj.targetStr = chip.dataset.chip;
+    updateAdjTargetUI();
+    recalcAdj();
+  });
+  $('adjCustom').addEventListener('input', (e) => { state.adj.customStr = e.target.value; recalcAdj(); });
 
   $('addLot').addEventListener('click', () => {
     state.lots.push(newLot());
@@ -840,6 +942,8 @@
       commitHistory();
       state.massStr = '';
       state.lots = [newLot()];
+    } else if (state.tab === 'adj') {
+      state.adj = { rows: [newMixRow()], targetStr: state.adj.targetStr, customStr: '' };
     } else {
       state.mix = { rows: [newMixRow(), newMixRow()], ligStr: '' };
     }
@@ -862,6 +966,7 @@
     $('ligNote').textContent = 'Лигатура (проба ' + S.formatFinenessShort(ligatureFineness()) + ') есть всегда.';
     recalc();
     recalcMix();
+    recalcAdj();
   });
 
   // don't lose a pending history entry when the app goes to background

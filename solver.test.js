@@ -266,6 +266,66 @@ test('too much gold even after cutting any one lot: leave a lot out, never split
   assert.equal(new Set(res.dilutions.map((d) => d.text)).size, res.dilutions.length);
 });
 
+const adj = (rows, target, extra) => S.adjustFineness(Object.assign({ rows: rows.map(([g, f]) => ({ mg: G(g), fineness: f })), target }, extra));
+const byFineness = (res, f) => res.options.find((o) => o.parts[0].fineness === f);
+
+test('raise: 10 g of 357 to 585 with 750 or 999', () => {
+  const res = adj([[10, 357]], 585);
+  assert.equal(res.status, 'ok');
+  assert.equal(res.direction, 'up');
+  const with750 = byFineness(res, 750);
+  assert.equal(S.formatGrams(with750.addMg), '13.82');
+  assert.equal(S.formatGrams(with750.totalMg), '23.82');
+  const with999 = byFineness(res, 999);
+  assert.equal(S.formatGrams(with999.addMg), '5.51');
+  assert.equal(S.formatGrams(with999.totalMg), '15.51');
+  assert.ok(res.options.every((o) => o.check.ok), res.options.map((o) => o.check.text).join('; '));
+  assert.equal(with750.text, 'Добавить 13.82 г золота 750 → получится 23.82 г пробы 585');
+});
+
+test('raise: several low rows are blended first; custom 958 is offered', () => {
+  const res = adj([[10, 357], [8, 500]], 585, { customFineness: 958 });
+  assert.ok(Math.abs(res.haveFineness - 420.6) < 0.1, String(res.haveFineness));
+  assert.equal(res.haveMg, G(18));
+  const c = byFineness(res, 958);
+  assert.equal(c.source, 'custom');
+  near(c.addMg, (18 * (585 - 420.556)) / (958 - 585), '958');
+  assert.ok(res.options.every((o) => o.check.ok));
+});
+
+test('raise: custom additive on the wrong side gives a hint, not an option', () => {
+  const res = adj([[10, 357]], 585, { customFineness: 500 });
+  assert.equal(res.customError, 'Добавка должна быть выше 585');
+  assert.ok(!byFineness(res, 500));
+  // 750 is not a raising option for target 750
+  assert.ok(!byFineness(adj([[10, 585]], 750), 750));
+});
+
+test('lower: too high fineness is diluted with ligature or 585', () => {
+  const res = adj([[10, 999]], 750);
+  assert.equal(res.direction, 'down');
+  assert.equal(S.formatGrams(byFineness(res, 0).addMg), '3.32');
+  assert.equal(byFineness(res, 0).parts[0].source, 'ligature');
+  assert.equal(S.formatGrams(byFineness(res, 585).addMg), '15.09');
+  assert.ok(res.options.every((o) => o.check.ok));
+  assert.equal(byFineness(adj([[10, 750]], 585), 0).text, 'Добавить 2.82 г лигатуры → получится 12.82 г пробы 585');
+});
+
+test('adjust: small piece switches to 0.001 g so the fineness still hits the target', () => {
+  const res = adj([[0.5, 357]], 585);
+  const o = byFineness(res, 999);
+  assert.ok(o.check.ok, o.check.text);
+  assert.notEqual(o.addMg % 10, 0, 'needs milligram precision');
+  assert.equal(S.formatGrams(o.addMg).split('.')[1].length, 3);
+});
+
+test('adjust: already at target, empty input', () => {
+  assert.equal(adj([[10, 585]], 585).status, 'exact');
+  assert.equal(adj([], 585).status, 'empty');
+  assert.equal(adj([[10, 357]], null).status, 'empty');
+  assert.equal(S.adjustFineness({ rows: [{ mg: null, fineness: null }], target: 585 }).status, 'empty');
+});
+
 test('fuzz: never NaN, never negative or zero grams, sums are exact', () => {
   let seed = 42;
   const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
@@ -292,5 +352,25 @@ test('fuzz: never NaN, never negative or zero grams, sums are exact', () => {
     }
     if (res.status === 'ok') assert.ok(Number.isFinite(res.remainder.fineness));
     if (res.status === 'error') assert.ok(!res.message.includes('NaN'), res.message);
+  }
+});
+
+test('fuzz adjust: positive additions, achieved fineness equals target (0.5 permille)', () => {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  for (let i = 0; i < 3000; i++) {
+    const rows = [];
+    const n = 1 + Math.floor(rnd() * 3);
+    for (let k = 0; k < n; k++) rows.push({ mg: 500 + Math.floor(rnd() * 40000), fineness: 1 + Math.floor(rnd() * 999) });
+    const target = rnd() < 0.5 ? 585 : 750;
+    const custom = rnd() < 0.5 ? 1 + Math.floor(rnd() * 999) : null;
+    const res = S.adjustFineness({ rows, target, customFineness: custom });
+    if (res.status !== 'ok') continue;
+    for (const o of res.options) {
+      assert.ok(Number.isInteger(o.addMg) && o.addMg > 0, JSON.stringify(o));
+      assert.equal(o.totalMg, res.haveMg + o.addMg);
+      assert.ok(!o.text.includes('NaN'), o.text);
+      assert.ok(o.check.ok, o.check.text);
+    }
   }
 });

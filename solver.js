@@ -447,6 +447,73 @@
     return { totalMg, goldMg, fineness: (goldMg / totalMg) * 1000 };
   }
 
+  // ---------- screen "Довести пробу" ----------
+
+  // Have some metal (one or more rows of any fineness), want fineness T. The final mass is free:
+  // add Y of another fineness, Y = m*(T - f)/(f_add - T), total = m + Y.
+  // Below the target: add richer gold (750, 999, custom). Above it: ligature or 585 (or custom).
+  const RAISE_WITH = [750, 999];
+  const LOWER_WITH = [585];
+
+  // input: { rows: [{ mg, fineness }], target, customFineness, ligatureFineness }
+  function adjustFineness(input) {
+    const target = input && input.target;
+    const L = input && Number.isFinite(input.ligatureFineness) ? input.ligatureFineness : 0;
+    if (!Number.isFinite(target) || target < MIN_FINENESS || target > MAX_FINENESS) return { status: 'empty' };
+    const have = validLots(input.rows);
+    const haveMg = sumMg(have);
+    if (haveMg <= 0) return { status: 'empty' };
+    const haveGoldMg = goldOf(have);
+    const f = (haveGoldMg / haveMg) * 1000;
+    const base = { haveMg, haveGoldMg, haveFineness: f };
+    if (sameFineness(f, target)) {
+      return Object.assign({ status: 'exact', message: 'Добавлять ничего не нужно: проба уже ' + formatFineness(f) + '.' }, base);
+    }
+
+    const up = f < target;
+    const fits = (a) => (up ? a - target > TOL : target - a > TOL);
+    const candidates = up
+      ? RAISE_WITH.filter(fits).map((a) => ({ fineness: a, source: 'reference' }))
+      : [{ fineness: L, source: 'ligature' }].filter((c) => fits(c.fineness))
+          .concat(LOWER_WITH.filter(fits).map((a) => ({ fineness: a, source: 'reference' })));
+
+    let customError = null;
+    const custom = input.customFineness;
+    if (Number.isFinite(custom)) {
+      if (!fits(custom)) {
+        customError = up ? 'Добавка должна быть выше ' + formatFinenessShort(target)
+          : 'Добавка должна быть ниже ' + formatFinenessShort(target);
+      } else if (!candidates.some((c) => sameFineness(c.fineness, custom))) {
+        candidates.push({ fineness: custom, source: 'custom' });
+      }
+    }
+
+    const options = [];
+    for (const c of candidates) {
+      const exact = (haveMg * (target - f)) / (c.fineness - target);
+      const make = (mg) => ({ fineness: c.fineness, mg, source: c.source === 'ligature' ? 'ligature' : 'lot', wholeLot: false, lotIds: [] });
+      // 0.01 g by default; small pieces fall back to 0.001 g when 0.01 g would miss the target
+      let add = make(round10(exact));
+      let check = checkLine(have.concat([add]), target);
+      if (!check.ok || add.mg <= 0) {
+        add = make(Math.round(exact));
+        check = checkLine(have.concat([add]), target);
+      }
+      if (add.mg <= 0) continue;
+      const addMg = add.mg;
+      const totalMg = haveMg + addMg;
+      options.push({
+        parts: [add],
+        source: c.source,
+        addMg,
+        totalMg,
+        check,
+        text: 'Добавить ' + partText(add) + ' → получится ' + formatGrams(totalMg) + ' г пробы ' + formatFinenessShort(target),
+      });
+    }
+    return Object.assign({ status: 'ok', direction: up ? 'up' : 'down', options, customError }, base);
+  }
+
   // ---------- history ----------
 
   // entry: { key, ... }; an existing entry with the same key moves to the top
@@ -484,6 +551,7 @@
     solve,
     resultsTitle,
     mixResult,
+    adjustFineness,
     addToHistory,
   };
 });
