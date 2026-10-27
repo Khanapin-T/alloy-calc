@@ -1,6 +1,6 @@
 // Offline support. Network first, so an online device always gets the latest version;
 // the cache is the fallback when there is no connection (or it is too slow).
-const CACHE = 'alloy-calc-v2';
+const CACHE = 'alloy-calc-v3';
 const ASSETS = [
   './',
   './index.html',

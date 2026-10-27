@@ -344,6 +344,38 @@ test('raise from stock: partial takes the rows that need least first', () => {
   assert.ok(partial.check.ok, partial.check.text);
 });
 
+// stock row with a fineness and no grams = any amount of that metal
+const open = (fineness) => ({ mg: null, fineness });
+
+test('raise with a fineness but no grams: 3 g of 315 + any 915 -> 585', () => {
+  const res = S.adjustFineness({ rows: rowsOf([[3, 315]]), target: 585, stock: [open(915)] });
+  assert.equal(res.hasStock, true);
+  const first = res.options[0];
+  assert.equal(first.section, 'stock');
+  assert.deepEqual(addsOf(first), [[915, '2.45']]);
+  assert.equal(S.formatGrams(first.totalMg), '5.45');
+  assert.ok(first.check.ok, first.check.text);
+  assert.ok(res.options.filter((o) => o.section === 'other').every((o) => o.adds.every((a) => a.fineness !== 915)));
+});
+
+test('a fineness without grams lifts the limit of a stock row of the same fineness', () => {
+  const res = S.adjustFineness({ rows: rowsOf([[10, 357]]), target: 585, stock: [{ mg: G(3), fineness: 999 }, open(999)] });
+  assert.ok(!res.options.some((o) => o.kind === 'partial' || o.kind === 'topup'));
+  assert.equal(S.formatGrams(byFineness(res, 999).addMg), '5.51');
+  assert.equal(byFineness(res, 999).section, 'stock');
+});
+
+test('a fineness without grams that cannot reach the target gives no stock option', () => {
+  const res = S.adjustFineness({ rows: rowsOf([[10, 357]]), target: 585, stock: [open(500)] });
+  assert.equal(res.hasStock, true);
+  assert.ok(res.options.length > 0 && res.options.every((o) => o.section === 'other'));
+});
+
+test('stock rows with neither grams nor fineness are still ignored', () => {
+  const res = S.adjustFineness({ rows: rowsOf([[10, 357]]), target: 585, stock: [{ mg: null, fineness: null }] });
+  assert.equal(res.hasStock, false);
+});
+
 test('lower from stock: poor scrap is used up before ligature', () => {
   const res = adj([[10, 999]], 750, [[5, 375]]);
   const mix = res.options.find((o) => o.kind === 'mix');

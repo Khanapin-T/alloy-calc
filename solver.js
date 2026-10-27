@@ -468,7 +468,8 @@
   // ---------- screen "Довести пробу" ----------
 
   // Have some metal (one or more rows of any fineness), want fineness T; the final mass is free.
-  // Additions come from stock (rows with grams = limits), ligature (lowering only, unlimited)
+  // Additions come from stock (rows with grams = limits; a row with a fineness but no grams = any amount),
+  // ligature (lowering only, unlimited)
   // and reference finenesses (unlimited, "наличие не указано"). Per gram an addition of fineness f
   // moves the balance by |f - T|; the base needs m*|T - f_base| in total.
   const RAISE_WITH = [750, 999];
@@ -494,9 +495,20 @@
     const cost = (f) => -gain(f); // per gram of base metal
     const need = base.reduce((acc, r) => acc + r.mg * cost(r.fineness), 0); // > 0
 
-    const stockLots = validLots((input.stock || []).map((r, i) => Object.assign({ id: 's' + i }, r)));
-    const hasStock = stockLots.length > 0;
+    const stockRows = (input.stock || []).map((r, i) => Object.assign({ id: 's' + i }, r));
+    const stockLots = validLots(stockRows);
+    // "Сколько добавить 915?": a fineness without grams means any amount of that metal
+    const openF = stockRows
+      .filter((r) => !(Number.isInteger(r.mg) && r.mg > 0) &&
+        Number.isFinite(r.fineness) && r.fineness >= MIN_FINENESS && r.fineness <= MAX_FINENESS)
+      .map((r) => r.fineness);
+    const hasStock = stockLots.length > 0 || openF.length > 0;
     const merged = buildPool(stockLots, L, true).filter((m) => m.source === 'stock');
+    for (const f of openF) {
+      const same = merged.find((m) => sameFineness(m.fineness, f));
+      if (same) same.limitMg = Infinity;
+      else merged.push({ fineness: f, limitMg: Infinity, source: 'stock', lotIds: [] });
+    }
     const own = merged.filter((m) => gain(m.fineness) > TOL);
     if (!up && gain(L) > TOL) own.push({ fineness: L, limitMg: Infinity, source: 'ligature', lotIds: [] });
     const refs = (up ? RAISE_WITH : LOWER_WITH)

@@ -436,12 +436,12 @@
 
   <section id="screenAdj" hidden>
     <section class="group">
-      <h2 class="group-title">Что есть</h2>
+      <h2 class="group-title">Что доводим</h2>
       <div class="group-body">
         <ul class="lots" id="adjRows"></ul>
         <button id="addAdj" class="add" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Добавить металл</button>
       </div>
-      <p class="group-foot">Металл, пробу которого надо довести. Можно несколько кусков разной пробы.</p>
+      <p class="group-foot">Металл, пробу которого меняешь. Пойдёт в плавку весь. Можно несколько кусков разной пробы.</p>
     </section>
 
     <section class="group">
@@ -458,12 +458,12 @@
     </section>
 
     <section class="group">
-      <h2 class="group-title">Чем добавлять</h2>
+      <h2 class="group-title">Чем доводить</h2>
       <div class="group-body">
-        <ul class="lots" id="adjStockRows"></ul>
+        <ul class="lots" id="adjStockRows" data-grams-placeholder="любое"></ul>
         <button id="addAdjStock" class="add" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Добавить металл</button>
       </div>
-      <p class="group-foot">Сколько какого золота есть. Если пусто, посчитаю без ограничений по наличию.</p>
+      <p class="group-foot">Проба металла, который добавляешь. Граммы: сколько его есть. Если не важно, оставь пустым. Если ничего не выбрать, предложу стандартные пробы.</p>
     </section>
 
     <div id="adjResult" aria-live="polite"></div>
@@ -649,11 +649,11 @@
 
   // ---------- metal rows ----------
   // withSwitch: stock row of "Расчёт" (grams + fineness, then "Взять целиком" + delete);
-  // otherwise one line: grams + fineness + delete
-  function rowEl(item, withSwitch) {
+  // otherwise one line: grams + fineness + delete. gramsPlaceholder: "любое" where empty grams mean any amount
+  function rowEl(item, withSwitch, gramsPlaceholder) {
     const grams = el('div', { class: 'lot-g' }, [
       el('input', { class: 'num', type: 'text', inputmode: 'decimal', autocomplete: 'off', enterkeyhint: 'done',
-        placeholder: '0', 'aria-label': 'Масса куска, г', 'data-k': 'grams', value: item.gramsStr }),
+        placeholder: gramsPlaceholder || '0', 'aria-label': 'Масса куска, г', 'data-k': 'grams', value: item.gramsStr }),
       el('span', { class: 'unit', text: 'г', 'aria-hidden': 'true' }),
     ]);
     const chips = LOT_CHIPS.map((v) => el('button', { type: 'button', class: 'chip', 'data-chip': v, 'aria-pressed': 'false', text: String(v) }));
@@ -734,7 +734,7 @@
         } else {
           const fresh = makeItem();
           setList([fresh]);
-          row.replaceWith(rowEl(fresh, withSwitch));
+          row.replaceWith(rowEl(fresh, withSwitch, container.dataset.gramsPlaceholder));
         }
         onChange();
         return;
@@ -746,7 +746,7 @@
 
   function addRow(container, list, makeItem, withSwitch, onChange) {
     list.push(makeItem());
-    container.append(rowEl(list[list.length - 1], withSwitch));
+    container.append(rowEl(list[list.length - 1], withSwitch, container.dataset.gramsPlaceholder));
     onChange();
     container.lastElementChild.querySelector('[data-k="grams"]').focus();
   }
@@ -761,7 +761,7 @@
   }
   function renderAdjRows() {
     $('adjRows').replaceChildren(...state.adj.rows.map((r) => rowEl(r, false)));
-    $('adjStockRows').replaceChildren(...state.adj.stock.map((r) => rowEl(r, false)));
+    $('adjStockRows').replaceChildren(...state.adj.stock.map((r) => rowEl(r, false, $('adjStockRows').dataset.gramsPlaceholder)));
   }
 
   function updateTargetUI(container, targetStr) {
