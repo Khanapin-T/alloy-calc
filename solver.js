@@ -398,7 +398,7 @@
     if (onMg > massMg) {
       return fail(
         'MANDATORY_EXCEEDS_MASS',
-        'Отмечено «Весь в плавку» ' + fmtOn + ' — это больше, чем нужно залить (' + formatGrams(massMg) + ' г).'
+        '«Взять целиком» отмечено для ' + fmtOn + ', а залить нужно только ' + formatGrams(massMg) + ' г.'
       );
     }
     if (onMg === massMg) {
@@ -406,7 +406,7 @@
       if (sameFineness(fOn, target)) {
         return {
           status: 'exact',
-          message: 'Добавлять ничего не нужно: лоты «Весь в плавку» дают ровно ' + formatGrams(massMg) +
+          message: 'Добавлять ничего не нужно: куски «Взять целиком» дают ровно ' + formatGrams(massMg) +
             ' г пробы ' + formatFineness(fOn) + '.',
           parts,
           check: checkLine(parts, target),
@@ -415,22 +415,21 @@
       }
       return fail(
         'EXACT_MASS_WRONG_FINENESS',
-        'Лоты «Весь в плавку» дают ровно ' + formatGrams(massMg) + ' г, но проба ' + formatFineness(fOn) +
-          ' вместо ' + formatFinenessShort(target) + '.' +
-          ''
+        'Куски «Взять целиком» дают ровно ' + formatGrams(massMg) + ' г, но проба ' + formatFineness(fOn) +
+          ' вместо ' + formatFinenessShort(target) + '.'
       );
     }
     if (rem.goldMg < 0 || rem.fineness < L - TOL) {
       return fail(
         'TOO_MUCH_GOLD',
-        'В лотах «Весь в плавку» (' + fmtOn + ') слишком много золота: даже с одной лигатурой проба будет выше ' +
+        'В кусках «Взять целиком» (' + fmtOn + ') слишком много золота: даже с одной лигатурой проба будет выше ' +
           formatFinenessShort(target) + '.'
       );
     }
     if (rem.fineness > MAX_FINENESS + TOL) {
       return fail(
         'FINENESS_UNREACHABLE',
-        'Лоты «Весь в плавку» (' + fmtOn + ') слишком низкой пробы: целиком их не взять, даже добавив 999.'
+        'Куски «Взять целиком» (' + fmtOn + ') слишком низкой пробы: целиком их не взять, даже добавив 999.'
       );
     }
 
