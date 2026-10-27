@@ -21,3 +21,6 @@ node --test
 
 Файлы: `index.html` (интерфейс), `solver.js` (расчёты, без DOM), `solver.test.js` (тесты),
 `sw.js` (офлайн), `manifest.json` и иконки (установка).
+
+Эскизы нового интерфейса: `design/index.html` (5 вариантов экрана «Расчёт», живые, на `solver.js`).
+Запуск: `python -m http.server 8080` в корне репозитория, затем http://localhost:8080/design/

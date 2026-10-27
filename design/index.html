@@ -1,0 +1,1277 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Эскизы интерфейса Сплава</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Onest:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@500;600&family=Golos+Text:wght@400;500;600;700&family=Geist:wght@400;500;600&family=Manrope:wght@500;600;700;800&display=swap">
+<style>
+  /* Layout: a workbench strip of five live phones in one row; the gallery chrome stays quiet so the phones carry the color. */
+  :root {
+    --g-bg: #e9e8e4;
+    --g-panel: #f4f3f0;
+    --g-ink: #1b1a17;
+    --g-muted: #5c5952;
+    --g-line: #d3d0c8;
+    --g-accent: #7d5a12;
+    --g-bezel: #19191b;
+    --g-bezel-edge: #3b3b40;
+    --g-shadow: rgba(30, 26, 18, .28);
+    --g-font: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --g-bg: #141412;
+      --g-panel: #1c1b19;
+      --g-ink: #eeece6;
+      --g-muted: #a8a49b;
+      --g-line: #302f2b;
+      --g-accent: #e0b45a;
+      --g-bezel: #050506;
+      --g-bezel-edge: #2c2c30;
+      --g-shadow: rgba(0, 0, 0, .6);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --g-bg: #141412;
+    --g-panel: #1c1b19;
+    --g-ink: #eeece6;
+    --g-muted: #a8a49b;
+    --g-line: #302f2b;
+    --g-accent: #e0b45a;
+    --g-bezel: #050506;
+    --g-bezel-edge: #2c2c30;
+    --g-shadow: rgba(0, 0, 0, .6);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--g-bg);
+    color: var(--g-ink);
+    font: 15px/1.5 var(--g-font);
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 2px solid var(--g-accent); outline-offset: 2px; }
+
+  .g-head {
+    display: grid; gap: 14px;
+    max-width: 1180px;
+    padding-block: 28px 18px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .g-head h1 { margin: 0; font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+  .g-lead { margin: 0; max-width: 68ch; color: var(--g-muted); }
+  .g-lead b { color: var(--g-ink); font-weight: 600; }
+  .g-tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  .g-seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--g-panel); border: 1px solid var(--g-line); }
+  .g-seg button { border: 0; background: none; padding: 6px 12px; border-radius: 7px; font-size: 14px; color: var(--g-muted); min-height: 36px; }
+  .g-seg button[aria-pressed="true"] { background: var(--g-ink); color: var(--g-bg); }
+  .g-ux { max-width: 80ch; border-top: 1px solid var(--g-line); padding-top: 10px; }
+  .g-ux summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+  .g-ux ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; color: var(--g-muted); }
+  .g-ux li b { color: var(--g-ink); font-weight: 600; }
+
+  /* grid + subgrid: captions of different length still leave the five phones on one baseline */
+  .g-row {
+    display: grid; grid-auto-flow: column; grid-template-rows: auto auto;
+    gap: 12px 28px; align-items: start;
+    justify-content: safe center;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-block: 6px 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .g-col { width: calc(395px * var(--z, 1)); display: grid; grid-row: span 2; grid-template-rows: subgrid; scroll-snap-align: center; }
+  .g-cap { display: grid; gap: 4px; align-content: start; }
+  .g-cap-top { display: flex; align-items: baseline; gap: 10px; }
+  .g-num {
+    flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--g-ink); color: var(--g-bg);
+    font-weight: 700; font-size: 15px;
+  }
+  .g-cap h2 { margin: 0; font-size: 18px; line-height: 1.2; font-weight: 700; }
+  .g-ref { margin: 0; font-size: 13px; color: var(--g-accent); font-weight: 600; }
+  .g-desc { margin: 0; font-size: 14px; line-height: 1.45; color: var(--g-muted); }
+  .g-cap .g-seg { justify-self: start; margin-top: 4px; }
+  .g-cap .g-seg button { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+
+  /* ---------- phone shell (shared) ---------- */
+  .phone {
+    zoom: var(--z, 1);
+    width: 395px; height: 832px; padding: 10px;
+    border-radius: 56px;
+    background: var(--g-bezel);
+    box-shadow: inset 0 0 0 1.5px var(--g-bezel-edge), 0 34px 60px -34px var(--g-shadow);
+  }
+  .screen {
+    --tab-h: 84px;
+    position: relative; isolation: isolate;
+    width: 375px; height: 812px;
+    border-radius: 46px; overflow: hidden;
+    display: flex; flex-direction: column;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px; line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+  }
+  .screen button { font-family: inherit; }
+  .screen :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  .island { position: absolute; z-index: 30; top: 11px; left: 50%; width: 122px; height: 35px; margin-left: -61px; border-radius: 20px; background: var(--g-bezel); }
+  .statusbar {
+    flex: 0 0 auto; height: 54px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 28px 0 44px;
+    font: 600 16px/1 -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+    background: var(--bar-bg, var(--bg)); color: var(--ink);
+  }
+  .sb-icons { display: flex; gap: 6px; align-items: center; }
+  .sb-icons svg { display: block; fill: currentColor; }
+  .appbar {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 2px;
+    padding: 2px 8px 8px 20px;
+    background: var(--bar-bg, var(--bg));
+  }
+  .appbar h1 {
+    flex: 1; min-width: 0; margin: 0;
+    font: var(--title-weight, 700) var(--title-size, 30px)/1.1 var(--font-display);
+    letter-spacing: var(--title-track, -.02em);
+  }
+  .crumb { display: none; }
+  .appbar-actions { display: flex; }
+  .icon-btn {
+    width: 44px; height: 44px; border: 0; border-radius: 22px;
+    display: grid; place-items: center;
+    background: none; color: var(--accent-text);
+  }
+  .icon-btn:active { background: var(--surface-2); }
+  .screen svg.i { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .scroll {
+    flex: 1 1 auto; min-height: 0;
+    overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: none;
+    display: flex; flex-direction: column; gap: 26px;
+    padding: 6px 16px 28px;
+  }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  .sec { display: grid; gap: 10px; }
+  .sec-title {
+    margin: 0;
+    display: flex; align-items: center; gap: 10px;
+    font: var(--sec-weight, 600) var(--sec-size, 20px)/1.2 var(--font-display);
+    letter-spacing: var(--sec-track, -.01em);
+  }
+  .step { display: none; }
+  .sec-hint { margin: 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
+  .sec-body { display: grid; gap: 14px; }
+  .sheet-handle { display: none; }
+
+  .field { display: grid; gap: 6px; }
+  .field-label { font-size: 14px; font-weight: 500; color: var(--muted); }
+  .num {
+    width: 100%; min-width: 0; height: 48px;
+    padding: 0 12px;
+    background: var(--field-bg); color: var(--ink);
+    border: 1px solid var(--field-line); border-radius: var(--r-ctl);
+    font-size: 18px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+  .num::placeholder { color: var(--muted); opacity: .7; }
+  .num:focus { border-color: var(--accent-text); box-shadow: 0 0 0 3px var(--focus); }
+  .mass-box, .lot-g { position: relative; }
+  .mass-box .num { height: 60px; padding-right: 40px; font-size: 28px; font-weight: 600; }
+  .unit { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); color: var(--muted); font-size: 17px; pointer-events: none; }
+
+  .seg {
+    display: flex; gap: var(--seg-gap, 3px);
+    padding: var(--seg-pad, 3px);
+    background: var(--seg-bg);
+    border: var(--seg-border, 0);
+    border-radius: var(--seg-r, 12px);
+  }
+  .chip, .chip-input {
+    flex: 1 1 0; min-width: 0;
+    height: var(--chip-h, 42px);
+    border: 0; border-radius: var(--chip-r, 9px);
+    background: var(--chip-bg, transparent); color: var(--chip-fg, var(--ink));
+    font-size: 16px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    transition: background .15s, color .15s;
+  }
+  .chip[aria-pressed="true"], .chip[aria-checked="true"], .chip-input.filled {
+    background: var(--chip-on-bg); color: var(--chip-on-fg); box-shadow: var(--chip-on-shadow, none);
+  }
+  /* width: 0 drops the input's intrinsic width, so the grid tracks above it don't grow past the screen */
+  .chip-input { width: 0; padding: 0 4px; text-align: center; outline: none; font-weight: 500; }
+  .sec, .sec-body, .lots, .lot, .result, .recipe { grid-template-columns: minmax(0, 1fr); }
+  .chip-input::placeholder { color: var(--muted); font-size: 13px; font-weight: 500; opacity: 1; }
+  .chip-input:focus { background: var(--field-bg); color: var(--ink); box-shadow: inset 0 0 0 2px var(--accent-text); }
+  .seg-target { --chip-h: 46px; }
+  .seg-target .chip { font-size: 18px; }
+
+  .lots { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .lot {
+    display: grid; gap: 4px;
+    padding: 10px 10px 4px;
+    background: var(--lot-bg, var(--surface));
+    border: 1px solid var(--lot-line, var(--line));
+    border-radius: var(--r-card);
+  }
+  .lot-top { display: flex; align-items: center; gap: 8px; }
+  .lot-g { flex: 0 0 94px; }
+  .lot-g .num { padding: 0 24px 0 10px; font-weight: 600; }
+  .lot-g .unit { right: 9px; font-size: 15px; }
+  .lot-top .seg { flex: 1 1 auto; min-width: 0; }
+  .lot-bottom { display: flex; align-items: center; justify-content: space-between; }
+  .whole {
+    display: inline-flex; align-items: center; gap: 10px;
+    min-height: 44px; padding: 0 8px 0 0;
+    border: 0; background: none; color: var(--ink);
+    font-size: 15px; font-weight: 500;
+  }
+  .whole-ctl {
+    position: relative; flex: 0 0 auto;
+    width: 40px; height: 24px; border-radius: 12px;
+    background: var(--switch-off);
+    transition: background .15s;
+  }
+  .whole-ctl::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--switch-thumb);
+    box-shadow: 0 1px 3px var(--thumb-shadow);
+    transition: transform .15s;
+  }
+  .whole[aria-checked="true"] .whole-ctl { background: var(--switch-on); }
+  .whole[aria-checked="true"] .whole-ctl::after { transform: translateX(16px); }
+  .lot-del {
+    width: 44px; height: 44px; border: 0; border-radius: 12px;
+    display: grid; place-items: center;
+    background: none; color: var(--muted);
+  }
+  .lot-del svg.i { width: 20px; height: 20px; }
+  .lot-del:active { background: var(--surface-2); }
+  .lot-err { margin: 0 0 6px; font-size: 13px; color: var(--danger); }
+  .lot-err:empty { display: none; }
+  .add {
+    min-height: 50px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1.5px dashed var(--line-strong); border-radius: var(--r-card);
+    background: none; color: var(--accent-text);
+    font-size: 16px; font-weight: 600;
+  }
+  .add svg.i { width: 20px; height: 20px; }
+
+  .result { display: grid; gap: 14px; }
+  .recipe {
+    display: grid; gap: 14px;
+    padding: 16px;
+    background: var(--recipe-bg, var(--surface));
+    border: 1px solid var(--recipe-line, var(--line));
+    border-radius: var(--r-card);
+  }
+  .recipe-head { display: grid; gap: 2px; }
+  .recipe-kicker { margin: 0; font-size: 15px; font-weight: 600; }
+  .recipe-sub { margin: 0; font-size: 14px; color: var(--muted); }
+  .donut { display: none; }
+  .ingr { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .ingr-row { display: grid; grid-template-columns: 104px 1fr; align-items: center; gap: 12px; }
+  .ingr-g {
+    justify-self: end; white-space: nowrap;
+    font: 700 26px/1 var(--font-display);
+    font-variant-numeric: tabular-nums;
+  }
+  .ingr-g small { margin-left: 3px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .ingr-what { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+  .ingr-key { display: none; width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+  .badge {
+    padding: 3px 9px; border-radius: 7px;
+    background: var(--badge-bg); color: var(--badge-fg);
+    font-size: 15px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .badge.lig { background: var(--surface-2); color: var(--muted); font-weight: 600; }
+  .ingr-tag { font-size: 13px; color: var(--muted); }
+  .recipe-total {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    padding-top: 12px; border-top: 1px solid var(--line);
+  }
+  .t-label { font-size: 14px; color: var(--muted); }
+  .t-val { display: grid; justify-items: end; gap: 2px; text-align: right; }
+  .t-main { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .t-gold { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .note { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn-fg); font-size: 14px; font-weight: 600; line-height: 1.35; }
+  .note.info { background: var(--surface-2); color: var(--ink); font-weight: 500; }
+  .note.ok { background: var(--ok-bg); color: var(--ok); }
+  .btn-primary {
+    width: 100%; min-height: 52px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: 0; border-radius: var(--r-btn);
+    background: var(--btn-bg); color: var(--btn-fg);
+    font-size: 17px; font-weight: 600;
+    transition: background .15s, color .15s;
+  }
+  .btn-primary svg.i { width: 20px; height: 20px; }
+  .btn-primary.done { background: var(--ok); color: var(--on-ok); }
+  .btn-ghost {
+    width: 100%; min-height: 48px;
+    border: 0; border-radius: var(--r-btn);
+    background: none; color: var(--accent-text);
+    font-size: 16px; font-weight: 600;
+  }
+  .more { border-top: 1px solid var(--line); }
+  .more summary {
+    list-style: none; cursor: pointer;
+    min-height: 52px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 16px; font-weight: 600;
+  }
+  .more summary::-webkit-details-marker { display: none; }
+  .more .count { margin-left: 6px; color: var(--muted); font-weight: 500; }
+  .more .chev { transition: transform .2s; color: var(--muted); }
+  .more[open] .chev { transform: rotate(180deg); }
+  .alt { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .alt-tag { margin: 0; grid-column: 1; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .alt-text { margin: 0; grid-column: 1; font-size: 15px; line-height: 1.35; font-variant-numeric: tabular-nums; }
+  .alt-note { margin: 0; grid-column: 1; font-size: 13px; color: var(--warn-fg); font-weight: 600; }
+  .alt-copy {
+    grid-column: 2; grid-row: 1 / span 3;
+    width: 44px; height: 44px; border: 0; border-radius: 12px;
+    display: grid; place-items: center;
+    background: var(--surface-2); color: var(--ink);
+  }
+  .alt-copy svg.i { width: 20px; height: 20px; }
+  .alt-copy.done { background: var(--ok); color: var(--on-ok); }
+  .empty {
+    display: grid; gap: 8px; justify-items: start;
+    padding: 18px; border: 1.5px dashed var(--line-strong); border-radius: var(--r-card);
+    color: var(--muted); font-size: 15px;
+  }
+  .empty p { margin: 0; }
+  .empty .btn-ghost { width: auto; min-height: 40px; padding: 0; }
+
+  .tabbar {
+    flex: 0 0 auto; height: var(--tab-h);
+    display: flex; padding: 6px 6px 28px;
+    background: var(--tab-bg); border-top: 1px solid var(--tab-line, var(--line));
+  }
+  .tab {
+    flex: 1; min-height: 48px;
+    display: grid; justify-items: center; align-content: center; gap: 3px;
+    border: 0; background: none; color: var(--tab-fg, var(--muted));
+    font-size: 11px; font-weight: 600;
+  }
+  .tab[aria-current="page"] { color: var(--tab-active); }
+  .tab svg.i { width: 24px; height: 24px; }
+  .home-ind { position: absolute; z-index: 30; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--ink); }
+  .toast {
+    position: absolute; z-index: 40; left: 16px; right: 16px; bottom: calc(var(--tab-h) + 14px);
+    padding: 12px 14px; border-radius: 12px;
+    background: var(--ink); color: var(--bg);
+    font-size: 14px; line-height: 1.35;
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .2s, transform .2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: none; }
+
+  /* =====================================================================
+     1. Apple: iOS grouped lists (Settings-style), SF / Inter, Action Blue
+     ===================================================================== */
+  .v-apple {
+    --bg: #f2f2f7; --surface: #ffffff; --surface-2: #eeeef0;
+    --ink: #1d1d1f; --muted: #6e6e73; --line: #dcdce0; --line-strong: #c7c7cc;
+    --accent-text: #0066cc; --focus: rgba(0, 102, 204, .25);
+    --btn-bg: #0066cc; --btn-fg: #ffffff;
+    --field-bg: #ffffff; --field-line: transparent;
+    --seg-bg: #e9e9eb; --seg-r: 9px; --seg-pad: 2px; --seg-gap: 0px;
+    --chip-r: 7px; --chip-h: 32px; --chip-on-bg: #ffffff; --chip-on-fg: #1d1d1f;
+    --chip-on-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 1px 1px rgba(0, 0, 0, .04);
+    --badge-bg: #f6ecd6; --badge-fg: #6b4b10;
+    --switch-off: #e3e3e8; --switch-on: #34c759; --switch-thumb: #ffffff; --thumb-shadow: rgba(0, 0, 0, .25);
+    --warn-bg: #fff3df; --warn-fg: #8a4f00; --ok: #248a3d; --ok-bg: #e5f6e9; --on-ok: #ffffff; --danger: #d70015;
+    --tab-bg: #f9f9f9; --tab-active: #0066cc; --tab-line: #d8d8dc;
+    --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+    --r-card: 12px; --r-ctl: 8px; --r-btn: 12px;
+    --title-size: 34px; --title-weight: 700; --title-track: -.015em;
+  }
+  .v-apple[data-scheme="dark"] {
+    --bg: #000000; --surface: #1c1c1e; --surface-2: #2c2c2e;
+    --ink: #f5f5f7; --muted: #98989f; --line: #38383a; --line-strong: #48484a;
+    --accent-text: #2997ff; --focus: rgba(41, 151, 255, .3);
+    --btn-bg: #0071e3; --btn-fg: #ffffff;
+    --field-bg: #1c1c1e;
+    --seg-bg: #2c2c2e; --chip-on-bg: #636366; --chip-on-fg: #ffffff; --chip-on-shadow: none;
+    --badge-bg: #3a2f17; --badge-fg: #f0c870;
+    --switch-off: #39393d; --switch-on: #30d158;
+    --warn-bg: #2e2210; --warn-fg: #ffb340; --ok: #30d158; --ok-bg: #0f2a17; --on-ok: #000000; --danger: #ff6961;
+    --tab-bg: #161617; --tab-active: #2997ff; --tab-line: #2c2c2e;
+  }
+  .v-apple .appbar { display: grid; grid-template-columns: 1fr auto; padding: 0 8px 6px 16px; }
+  .v-apple .appbar h1 { grid-row: 2; grid-column: 1 / -1; padding-left: 4px; }
+  .v-apple .appbar-actions { grid-row: 1; grid-column: 2; }
+  .v-apple .scroll { gap: 22px; padding-top: 4px; }
+  .v-apple .sec { gap: 6px; }
+  .v-apple .sec-title { padding: 0 16px; font: 400 13px/1.3 var(--font-body); color: var(--muted); letter-spacing: 0; }
+  .v-apple .sec-body { gap: 0; padding-left: 16px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+  .v-apple .sec-hint { padding: 0 16px; }
+  .v-apple .field { grid-template-columns: auto 1fr; align-items: center; gap: 12px; min-height: 52px; padding-right: 16px; }
+  .v-apple .field + .field { border-top: 1px solid var(--line); }
+  .v-apple .field-label { font-size: 17px; font-weight: 400; color: var(--ink); }
+  .v-apple .mass-box .num { height: 52px; padding: 0 24px 0 0; border: 0; background: none; text-align: right; font-size: 22px; font-weight: 500; box-shadow: none; }
+  .v-apple .mass-box .num:focus { color: var(--accent-text); }
+  .v-apple .mass-box .unit { right: 0; }
+  .v-apple .seg-target { justify-self: end; width: 168px; --chip-h: 34px; }
+  .v-apple .seg-target .chip { font-size: 15px; }
+  .v-apple .chip { font-size: 15px; }
+  .v-apple .lots { gap: 0; }
+  .v-apple .lot { padding: 10px 16px 0 0; gap: 0; border: 0; border-radius: 0; background: none; }
+  .v-apple .lot + .lot { border-top: 1px solid var(--line); }
+  .v-apple .lot-g .num { height: 34px; background: var(--surface-2); border-radius: 8px; font-size: 17px; }
+  .v-apple .lot-g { flex-basis: 90px; }
+  .v-apple .whole { font-size: 15px; font-weight: 400; }
+  .v-apple .whole-ctl { width: 51px; height: 31px; border-radius: 16px; }
+  .v-apple .whole-ctl::after { width: 27px; height: 27px; }
+  .v-apple .whole[aria-checked="true"] .whole-ctl::after { transform: translateX(20px); }
+  .v-apple .add { justify-content: flex-start; min-height: 46px; border: 0; border-top: 1px solid var(--line); border-radius: 0; font-size: 17px; font-weight: 400; }
+  .v-apple .recipe { gap: 0; padding: 0 0 0 16px; border: 0; }
+  .v-apple .recipe-head { padding: 12px 16px 10px 0; }
+  .v-apple .ingr { gap: 0; }
+  .v-apple .ingr-row { grid-template-columns: 92px 1fr; min-height: 50px; padding-right: 16px; border-top: 1px solid var(--line); }
+  .v-apple .ingr-g { font-size: 22px; font-weight: 600; }
+  .v-apple .recipe-total { padding: 12px 16px 12px 0; }
+  .v-apple .recipe .note { margin: 0 16px 12px 0; }
+  .v-apple .recipe .btn-primary { width: auto; margin: 4px 16px 16px 0; min-height: 50px; }
+  .v-apple .more { border: 0; background: var(--surface); border-radius: 12px; padding: 0 16px; }
+  .v-apple .more summary { font-weight: 400; font-size: 17px; }
+  .v-apple .tab { font-size: 10px; font-weight: 500; }
+
+  /* =====================================================================
+     2. Wise: oversized numbers, lime pills, breakdown with + and =
+     ===================================================================== */
+  .v-wise {
+    --bg: #e8ebe6; --surface: #ffffff; --surface-2: #eef1eb;
+    --ink: #0e0f0c; --muted: #555753; --line: #dde2d8; --line-strong: #b9bfb3;
+    --accent-text: #163300; --focus: rgba(159, 232, 112, .55);
+    --btn-bg: #9fe870; --btn-fg: #163300; --btn2-bg: #e2f6d5; --btn2-fg: #163300;
+    --field-bg: #ffffff; --field-line: #c9cec4;
+    --seg-bg: #eef1eb; --seg-r: 999px; --seg-pad: 4px; --seg-gap: 4px;
+    --chip-r: 999px; --chip-on-bg: #163300; --chip-on-fg: #9fe870;
+    --badge-bg: #e2f6d5; --badge-fg: #163300;
+    --switch-off: #c9cec4; --switch-on: #163300; --switch-thumb: #ffffff; --thumb-shadow: rgba(0, 0, 0, .2);
+    --warn-bg: #fff4c2; --warn-fg: #4a3b1c; --ok: #1f7a35; --ok-bg: #e2f6d5; --on-ok: #ffffff; --danger: #d03238;
+    --tab-bg: #ffffff; --tab-active: #163300;
+    --font-body: "Onest", system-ui, sans-serif;
+    --font-display: "Onest", system-ui, sans-serif;
+    --r-card: 24px; --r-ctl: 14px; --r-btn: 999px;
+    --title-size: 32px; --title-weight: 900; --title-track: -.03em;
+    --sec-size: 19px; --sec-weight: 800; --sec-track: -.02em;
+  }
+  .v-wise[data-scheme="dark"] {
+    --bg: #0e0f0c; --surface: #1a1c18; --surface-2: #262923;
+    --ink: #f2f5ef; --muted: #a9ada6; --line: #30342d; --line-strong: #4a4f46;
+    --accent-text: #9fe870; --focus: rgba(159, 232, 112, .35);
+    --btn2-bg: #253b16; --btn2-fg: #cdffad;
+    --field-bg: #1a1c18; --field-line: #3a3f36;
+    --seg-bg: #262923; --chip-on-bg: #9fe870; --chip-on-fg: #163300;
+    --badge-bg: #253b16; --badge-fg: #cdffad;
+    --switch-off: #3a3f36; --switch-on: #9fe870; --switch-thumb: #0e0f0c; --thumb-shadow: rgba(0, 0, 0, .5);
+    --warn-bg: #3a3112; --warn-fg: #ffd11a; --ok: #9fe870; --ok-bg: #1d2e12; --on-ok: #163300; --danger: #ff6b70;
+    --tab-bg: #1a1c18; --tab-active: #9fe870;
+  }
+  .v-wise .step {
+    display: grid; place-items: center; flex: 0 0 auto;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ink); color: var(--bg);
+    font: 800 14px/1 var(--font-display); letter-spacing: 0;
+  }
+  .v-wise .sec-body { padding: 16px; background: var(--surface); border-radius: 24px; }
+  .v-wise .field-mass .field-label { font-size: 15px; }
+  .v-wise .mass-box .num {
+    height: 76px; padding: 0 44px 0 0; border: 0; border-bottom: 2px solid var(--line);
+    border-radius: 0; background: none; box-shadow: none;
+    font-size: 54px; font-weight: 900; letter-spacing: -.035em;
+  }
+  .v-wise .mass-box .num:focus { border-bottom-color: var(--ink); }
+  .v-wise .mass-box .unit { right: 2px; font-size: 30px; font-weight: 800; color: var(--ink); }
+  .v-wise .chip, .v-wise .chip-input { font-weight: 700; }
+  .v-wise .lot { --lot-bg: var(--surface-2); --lot-line: transparent; border-radius: 18px; }
+  .v-wise .lot-top .seg { --seg-bg: var(--surface); }
+  .v-wise .lot-g .num { border-radius: 12px; font-weight: 700; }
+  .v-wise .add { border: 0; border-radius: 999px; background: var(--btn2-bg); color: var(--btn2-fg); font-weight: 700; }
+  .v-wise .recipe { gap: 16px; padding: 18px; border: 0; }
+  .v-wise .recipe-sub { font-size: 14px; }
+  .v-wise .ingr { position: relative; gap: 0; padding-left: 40px; }
+  .v-wise .ingr::before { content: ""; position: absolute; left: 13px; top: 18px; bottom: -14px; width: 2px; background: var(--line); }
+  .v-wise .ingr-row { position: relative; grid-template-columns: 112px 1fr; padding: 8px 0; }
+  .v-wise .ingr-row::before {
+    content: "+"; position: absolute; left: -40px; top: 50%;
+    width: 28px; height: 28px; margin-top: -14px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--surface-2); color: var(--ink);
+    font: 800 16px/1 var(--font-display);
+  }
+  .v-wise .ingr-g { justify-self: start; font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+  .v-wise .recipe-total { position: relative; display: grid; justify-items: start; gap: 2px; margin-left: 40px; padding: 4px 0 0; border: 0; }
+  .v-wise .recipe-total::before {
+    content: "="; position: absolute; left: -40px; top: 6px;
+    width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--ink); color: var(--bg);
+    font: 800 16px/1 var(--font-display);
+  }
+  .v-wise .t-label { font-size: 13px; }
+  .v-wise .t-val { justify-items: start; text-align: left; }
+  .v-wise .t-main { display: grid; gap: 2px; font-size: 32px; font-weight: 900; letter-spacing: -.03em; line-height: 1.05; }
+  .v-wise .t-sep { display: none; }
+  .v-wise .t-fine { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+  .v-wise .note { border-radius: 14px; }
+  .v-wise .btn-primary { font-weight: 700; }
+  .v-wise .more { border: 0; padding: 0 18px; background: var(--surface); border-radius: 24px; }
+  .v-wise .tab { font-weight: 700; }
+  .v-wise .tab[aria-current="page"] svg.i { stroke-width: 2.4; }
+
+  /* =====================================================================
+     3. Oura: warm paper, gold and a serif; a ring shows the melt by mass
+     ===================================================================== */
+  .v-oura {
+    --bg: #f7f1e8; --surface: #fffdf9; --surface-2: #efe8dc;
+    --ink: #1c1b1a; --muted: #67635c; --line: #e3ddd2; --line-strong: #cfc6b6;
+    --accent-text: #6b4a12; --focus: rgba(175, 117, 27, .28);
+    --btn-bg: #39221e; --btn-fg: #f7f1e8;
+    --field-bg: #fffdf9; --field-line: #ddd5c7;
+    --seg-bg: #efe8dc; --seg-r: 999px; --seg-pad: 3px;
+    --chip-r: 999px; --chip-on-bg: #39221e; --chip-on-fg: #f7f1e8;
+    --badge-bg: #f1e3c4; --badge-fg: #5c4309;
+    --switch-off: #ddd5c7; --switch-on: #af751b; --switch-thumb: #fffdf9; --thumb-shadow: rgba(57, 34, 30, .25);
+    --warn-bg: #f7e5cc; --warn-fg: #7a4510; --ok: #2f5a36; --ok-bg: #e4ead8; --on-ok: #ffffff; --danger: #b3341f;
+    --tab-bg: #fffdf9; --tab-active: #39221e;
+    --seg-1: #8f5f14; --seg-2: #c69a4e; --seg-3: #e4cb93; --seg-lig: #8a5b4f; --ring-track: #ece4d6;
+    --font-body: "Golos Text", system-ui, sans-serif;
+    --font-display: "Cormorant Garamond", "Times New Roman", Georgia, serif;
+    --r-card: 20px; --r-ctl: 12px; --r-btn: 999px;
+    --title-size: 38px; --title-weight: 500; --title-track: -.01em;
+    --sec-size: 25px; --sec-weight: 500; --sec-track: 0;
+  }
+  .v-oura[data-scheme="dark"] {
+    --bg: #19191c; --surface: #232226; --surface-2: #2e2c30;
+    --ink: #f7f1e8; --muted: #b2aca2; --line: #37353a; --line-strong: #4b484e;
+    --accent-text: #ddaa61; --focus: rgba(221, 170, 97, .3);
+    --btn-bg: #ddaa61; --btn-fg: #1c1b1a;
+    --field-bg: #232226; --field-line: #413e44;
+    --seg-bg: #2e2c30; --chip-on-bg: #ddaa61; --chip-on-fg: #1c1b1a;
+    --badge-bg: #3b3020; --badge-fg: #ebc98a;
+    --switch-off: #47444a; --switch-on: #ddaa61; --switch-thumb: #f7f1e8; --thumb-shadow: rgba(0, 0, 0, .4);
+    --warn-bg: #3a2c18; --warn-fg: #f0c27a; --ok: #a9c79a; --ok-bg: #233023; --on-ok: #19191c; --danger: #ff8a75;
+    --tab-bg: #1f1e22; --tab-active: #ddaa61;
+    --seg-1: #e6b66a; --seg-2: #b4874a; --seg-3: #7d6a4a; --seg-lig: #a5776b; --ring-track: #2e2c30;
+  }
+  .v-oura .appbar h1 { font-variant-numeric: lining-nums; }
+  .v-oura .field-label { font-size: 13px; }
+  .v-oura .mass-box .num, .v-oura .ingr-g, .v-oura .lot-g .num, .v-oura .t-main {
+    font-family: var(--font-display); font-variant-numeric: lining-nums tabular-nums;
+  }
+  .v-oura .mass-box .num { height: 64px; font-size: 38px; font-weight: 600; border-radius: 16px; }
+  .v-oura .lot-g .num { font-size: 22px; font-weight: 600; }
+  .v-oura .lot { padding: 12px 12px 4px; }
+  .v-oura .chip { font-weight: 600; }
+  .v-oura .recipe { gap: 16px; padding: 20px 18px; }
+  .v-oura .recipe-head { justify-items: center; text-align: center; }
+  .v-oura .donut { display: grid; place-items: center; position: relative; margin: 2px 0 4px; }
+  .v-oura .donut svg { display: block; width: 184px; height: 184px; }
+  .v-oura .donut-c { position: absolute; display: grid; justify-items: center; }
+  .v-oura .donut-f { font: 600 48px/1 var(--font-display); font-variant-numeric: lining-nums; }
+  .v-oura .donut-l { font-size: 13px; color: var(--muted); }
+  .v-oura .ingr-key { display: inline-block; }
+  .v-oura .ingr-row { grid-template-columns: 96px 1fr; }
+  .v-oura .ingr-g { font-size: 30px; font-weight: 600; }
+  .v-oura .badge { background: none; padding: 0; color: var(--ink); font-weight: 600; font-size: 16px; }
+  .v-oura .badge.lig { color: var(--ink); background: none; }
+  .v-oura .t-main { font-size: 24px; font-weight: 600; }
+  .v-oura .more { border-color: var(--line-strong); }
+  .v-oura .more summary { font: 500 21px/1.2 var(--font-display); }
+
+  /* =====================================================================
+     4. Linear: dark, dense, properties panel and a ledger-style recipe
+     ===================================================================== */
+  .v-linear {
+    --bg: #f4f5f5; --surface: #ffffff; --surface-2: #f0f1f2;
+    --ink: #08090a; --muted: #5f636a; --line: #e3e4e6; --line-strong: #cdcfd3;
+    --accent-text: #4b55c0; --focus: rgba(94, 106, 210, .28);
+    --btn-bg: #5e6ad2; --btn-fg: #ffffff;
+    --field-bg: #ffffff; --field-line: #d8dadd;
+    --seg-bg: #f0f1f2; --seg-r: 8px; --seg-pad: 2px; --seg-gap: 2px; --seg-border: 1px solid #e3e4e6;
+    --chip-r: 6px; --chip-h: 34px; --chip-on-bg: #5e6ad2; --chip-on-fg: #ffffff;
+    --badge-bg: #f0f1f2; --badge-fg: #2b2d31;
+    --switch-off: #ffffff; --switch-on: #5e6ad2; --switch-thumb: #ffffff; --thumb-shadow: transparent;
+    --warn-bg: #fff3dd; --warn-fg: #8a5200; --ok: #1f8a4c; --ok-bg: #e3f4ea; --on-ok: #ffffff; --danger: #c93a3a;
+    --tab-bg: #ffffff; --tab-active: #08090a;
+    --font-body: "Geist", "Inter", system-ui, sans-serif;
+    --font-display: "Geist", "Inter", system-ui, sans-serif;
+    --r-card: 10px; --r-ctl: 7px; --r-btn: 8px;
+    --title-size: 20px; --title-weight: 600; --title-track: -.01em;
+    --sec-size: 13px; --sec-weight: 500; --sec-track: 0;
+  }
+  .v-linear[data-scheme="dark"] {
+    --bg: #08090a; --surface: #0f1011; --surface-2: #18191a;
+    --ink: #f7f8f8; --muted: #8a8f98; --line: #23252a; --line-strong: #34343a;
+    --accent-text: #828fff; --focus: rgba(130, 143, 255, .3);
+    --field-bg: #141516; --field-line: #2a2c31;
+    --seg-bg: #141516; --seg-border: 1px solid #23252a;
+    --badge-bg: #1c1d20; --badge-fg: #d0d6e0;
+    --switch-off: transparent;
+    --warn-bg: #2a2112; --warn-fg: #f2c66d; --ok: #4cb782; --ok-bg: #12261b; --on-ok: #08090a; --danger: #eb5757;
+    --tab-bg: #0f1011; --tab-active: #f7f8f8;
+  }
+  .v-linear .appbar { padding: 2px 8px 10px 20px; border-bottom: 1px solid var(--line); }
+  .v-linear .crumb { display: inline; color: var(--muted); font-weight: 500; }
+  .v-linear .crumb::after { content: "/"; margin: 0 8px; color: var(--line-strong); }
+  .v-linear .icon-btn { color: var(--muted); border-radius: 8px; }
+  .v-linear .scroll { gap: 20px; padding-top: 16px; }
+  .v-linear .sec { gap: 8px; }
+  .v-linear .sec-title { color: var(--muted); }
+  .v-linear .sec-body { gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .v-linear .field { grid-template-columns: 104px 1fr; align-items: center; gap: 8px; min-height: 52px; padding: 6px 10px 6px 12px; }
+  .v-linear .field + .field { border-top: 1px solid var(--line); }
+  .v-linear .field-label { font-size: 14px; font-weight: 400; }
+  .v-linear .num { font-size: 16px; }
+  .v-linear .mass-box .num { height: 40px; font-size: 18px; font-weight: 500; padding-right: 28px; }
+  .v-linear .mass-box .unit { right: 10px; font-size: 15px; }
+  .v-linear .seg-target { --chip-h: 34px; }
+  .v-linear .seg-target .chip, .v-linear .chip { font-size: 14px; font-weight: 500; }
+  .v-linear .lots { gap: 0; }
+  .v-linear .lot { gap: 0; padding: 10px 10px 2px 12px; border: 0; border-radius: 0; background: none; }
+  .v-linear .lot + .lot { border-top: 1px solid var(--line); }
+  .v-linear .lot-g { flex-basis: 86px; }
+  .v-linear .lot-g .num { height: 36px; font-size: 15px; }
+  .v-linear .whole { font-size: 14px; gap: 8px; color: var(--muted); }
+  .v-linear .whole[aria-checked="true"] { color: var(--ink); }
+  .v-linear .whole-ctl { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--line-strong); background: var(--switch-off); }
+  .v-linear .whole-ctl::after {
+    top: 2px; left: 5px; width: 5px; height: 9px; border-radius: 0;
+    background: none; box-shadow: none;
+    border: solid var(--btn-fg); border-width: 0 2px 2px 0;
+    transform: rotate(45deg); opacity: 0; transition: none;
+  }
+  .v-linear .whole[aria-checked="true"] .whole-ctl { border-color: var(--switch-on); }
+  .v-linear .whole[aria-checked="true"] .whole-ctl::after { transform: rotate(45deg); opacity: 1; }
+  .v-linear .lot-del { width: 40px; height: 40px; border-radius: 8px; }
+  .v-linear .add { justify-content: flex-start; min-height: 44px; padding: 0 12px; border: 0; border-top: 1px solid var(--line); border-radius: 0; color: var(--muted); font-size: 14px; font-weight: 500; }
+  .v-linear .sec-hint { font-size: 12px; }
+  .v-linear .recipe { gap: 0; padding: 0; }
+  .v-linear .recipe-head { padding: 12px; }
+  .v-linear .recipe-kicker { font-size: 14px; }
+  .v-linear .recipe-sub { font-size: 13px; }
+  .v-linear .ingr { gap: 0; }
+  .v-linear .ingr-row { grid-template-columns: 1fr auto; min-height: 46px; padding: 0 12px; border-top: 1px solid var(--line); }
+  .v-linear .ingr-g { order: 2; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+  .v-linear .ingr-g small { font-size: 13px; }
+  .v-linear .badge { padding: 2px 7px; border-radius: 5px; font-size: 13px; font-weight: 600; border: 1px solid var(--line); }
+  .v-linear .badge.lig { border-color: transparent; }
+  .v-linear .recipe-total { padding: 12px; background: var(--surface-2); border-top: 1px solid var(--line); }
+  .v-linear .t-main { font-size: 15px; }
+  .v-linear .recipe .note { margin: 0 12px 12px; border-radius: 7px; font-size: 13px; }
+  .v-linear .recipe .note:first-of-type { margin-top: 12px; }
+  .v-linear .recipe .btn-primary { width: auto; margin: 12px; min-height: 44px; font-size: 15px; font-weight: 500; }
+  .v-linear .more { border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--surface); }
+  .v-linear .more summary { min-height: 46px; font-size: 14px; font-weight: 500; }
+  .v-linear .alt-text { font-size: 14px; }
+  .v-linear .alt-copy { width: 40px; height: 40px; border-radius: 8px; }
+  .v-linear .btn-ghost { font-size: 14px; font-weight: 500; color: var(--muted); }
+  .v-linear .tab { font-weight: 500; }
+
+  /* =====================================================================
+     5. Uber: black on white, pills, recipe in a bottom sheet that is always visible
+     ===================================================================== */
+  .v-uber {
+    --bg: #ffffff; --surface: #ffffff; --surface-2: #efefef;
+    --ink: #000000; --muted: #5e5e5e; --line: #e2e2e2; --line-strong: #c6c6c6;
+    --accent-text: #000000; --focus: rgba(0, 0, 0, .18);
+    --btn-bg: #000000; --btn-fg: #ffffff;
+    --field-bg: #efefef; --field-line: transparent;
+    --seg-bg: transparent; --seg-pad: 0px; --seg-gap: 6px;
+    --chip-r: 999px; --chip-h: 44px; --chip-bg: #efefef; --chip-on-bg: #000000; --chip-on-fg: #ffffff;
+    --badge-bg: #000000; --badge-fg: #ffffff;
+    --switch-off: #d6d6d6; --switch-on: #000000; --switch-thumb: #ffffff; --thumb-shadow: rgba(0, 0, 0, .25);
+    --warn-bg: #fff1d0; --warn-fg: #7a4a00; --ok: #05944f; --ok-bg: #e6f4ec; --on-ok: #ffffff; --danger: #e11900;
+    --tab-bg: #ffffff; --tab-active: #000000;
+    --sheet-bg: #ffffff; --sheet-shadow: rgba(0, 0, 0, .16);
+    --font-body: "Manrope", system-ui, sans-serif;
+    --font-display: "Manrope", system-ui, sans-serif;
+    --r-card: 16px; --r-ctl: 10px; --r-btn: 999px;
+    --title-size: 32px; --title-weight: 800; --title-track: -.03em;
+    --sec-size: 22px; --sec-weight: 800; --sec-track: -.02em;
+  }
+  .v-uber[data-scheme="dark"] {
+    --bg: #000000; --surface: #141414; --surface-2: #282828;
+    --ink: #ffffff; --muted: #afafaf; --line: #2e2e2e; --line-strong: #4b4b4b;
+    --accent-text: #ffffff; --focus: rgba(255, 255, 255, .25);
+    --btn-bg: #ffffff; --btn-fg: #000000;
+    --field-bg: #282828;
+    --chip-bg: #282828; --chip-on-bg: #ffffff; --chip-on-fg: #000000;
+    --badge-bg: #ffffff; --badge-fg: #000000;
+    --switch-off: #4b4b4b; --switch-on: #ffffff; --switch-thumb: #000000; --thumb-shadow: rgba(0, 0, 0, .5);
+    --warn-bg: #2b2210; --warn-fg: #ffc043; --ok: #3fbf7f; --ok-bg: #0f2a1d; --on-ok: #000000; --danger: #ff5f4a;
+    --tab-bg: #000000; --tab-active: #ffffff;
+    --sheet-bg: #161616; --sheet-shadow: rgba(0, 0, 0, .8);
+  }
+  .v-uber .scroll { padding-bottom: calc(var(--sheet-h, 260px) + 24px); }
+  .v-uber .num { border-width: 2px; }
+  .v-uber .num:focus { border-color: var(--ink); box-shadow: none; }
+  .v-uber .mass-box .num { height: 64px; font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+  .v-uber .chip, .v-uber .chip-input { font-weight: 700; }
+  .v-uber .chip-input:focus { box-shadow: inset 0 0 0 2px var(--ink); }
+  .v-uber .lots { gap: 0; }
+  .v-uber .lot { padding: 12px 0 4px; border: 0; border-radius: 0; background: none; border-bottom: 1px solid var(--line); }
+  .v-uber .lot:first-child { padding-top: 0; }
+  .v-uber .lot-top { gap: 6px; }
+  .v-uber .lot-g { flex-basis: 88px; }
+  .v-uber .lot-g .num { font-weight: 700; }
+  .v-uber .whole { font-weight: 600; }
+  .v-uber .add { justify-content: flex-start; min-height: 48px; padding: 0; border: 0; border-radius: 0; font-weight: 700; }
+  .v-uber .sec-result {
+    position: absolute; z-index: 20; left: 0; right: 0; bottom: var(--tab-h);
+    max-height: 50%; overflow-y: auto; scrollbar-width: none;
+    gap: 8px; padding: 8px 16px 14px;
+    background: var(--sheet-bg);
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -10px 30px var(--sheet-shadow);
+  }
+  .v-uber .sec-result::-webkit-scrollbar { display: none; }
+  .v-uber .sheet-handle { display: block; width: 38px; height: 5px; margin: 0 auto 4px; border-radius: 3px; background: var(--line-strong); }
+  .v-uber .sec-result .sec-title { font-size: 18px; }
+  .v-uber .result { gap: 10px; }
+  .v-uber .recipe { gap: 10px; padding: 0; border: 0; background: none; }
+  .v-uber .recipe-head { display: none; }
+  .v-uber .ingr { gap: 2px; }
+  .v-uber .ingr-row { grid-template-columns: 100px 1fr; }
+  .v-uber .ingr-g { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+  .v-uber .badge { border-radius: 6px; font-weight: 800; }
+  .v-uber .recipe-total { padding-top: 10px; }
+  .v-uber .t-main { font-weight: 800; }
+  .v-uber .btn-primary { font-weight: 700; min-height: 54px; }
+  .v-uber .note { border-radius: 10px; }
+  .v-uber .more summary { min-height: 48px; font-weight: 700; }
+  .v-uber .btn-ghost { font-weight: 700; }
+  .v-uber .tab { font-weight: 700; }
+  .v-uber .empty { border-style: solid; border-width: 1px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .screen *, .screen *::after { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="g-head">
+  <h1>Пять вариантов оформления</h1>
+  <p class="g-lead">Экран «Расчёт» в пяти стилях. <b>Телефоны живые</b>: меняй массу, пробу и металл, расчёт настоящий. Для примера уже введено: отливка 20 г пробы 585, в наличии лом 583 (идёт целиком) и кусок 750. Выбери номер, и я перенесу этот стиль на всё приложение.</p>
+  <div class="g-tools">
+    <div class="g-seg" role="group" aria-label="Масштаб">
+      <button type="button" data-fit="fit" aria-pressed="true">Все пять на экране</button>
+      <button type="button" data-fit="real" aria-pressed="false">Реальный размер</button>
+    </div>
+  </div>
+  <details class="g-ux">
+    <summary>Что поменялось в логике экрана (одинаково во всех пяти)</summary>
+    <ul>
+      <li><b>Экран читается сверху вниз как процесс:</b> что отливаем, что есть в наличии, что положить в тигель.</li>
+      <li><b>У каждого поля видимая подпись,</b> а не только серый текст внутри поля.</li>
+      <li><b>Кусок металла в две строки:</b> масса и проба сверху, «Взять целиком» и удаление снизу. Переключатель подписан полностью, без переноса.</li>
+      <li><b>Один главный рецепт крупно.</b> Остальные варианты свёрнуты в «Другие варианты».</li>
+      <li><b>Проверка сразу под рецептом:</b> итоговая масса, проба и чистое золото.</li>
+      <li><b>«Скопировать рецепт» стала большой кнопкой с текстом,</b> а «Новая плавка» стоит в конце, после копирования, а не в шапке.</li>
+      <li>Нет заголовков капсом, все кнопки не меньше 44 px, контраст текста не ниже 4.5:1.</li>
+    </ul>
+  </details>
+</header>
+
+<main class="g-row" id="row"></main>
+
+<script src="../solver.js"></script>
+<script>
+(function () {
+  'use strict';
+  const S = window.AlloySolver;
+  const FINE_CHIPS = [585, 750, 999];
+  const TARGETS = ['585', '750'];
+  const PHONE_W = 395;
+
+  const VARIANTS = [
+    { id: 'apple', name: 'Нативный iOS', ref: 'по мотивам Apple',
+      desc: 'Сгруппированные списки как в «Настройках» iPhone. Самый привычный: ничего нового учить не надо.', scheme: 'light' },
+    { id: 'wise', name: 'Крупные цифры', ref: 'по мотивам Wise',
+      desc: 'Как калькулятор перевода денег: огромная масса сверху, рецепт столбиком с плюсами и итогом через «=».', scheme: 'light' },
+    { id: 'oura', name: 'Ювелирный', ref: 'по мотивам Oura',
+      desc: 'Тёплая бумага, золото и антиква. Кольцо показывает, из чего состоит плавка по массе.', scheme: 'light', donut: true },
+    { id: 'linear', name: 'Рабочий инструмент', ref: 'по мотивам Linear',
+      desc: 'Тёмный и плотный: поля как таблица свойств, рецепт как ведомость. Больше всего влезает на экран.', scheme: 'dark' },
+    { id: 'uber', name: 'Контраст и шторка', ref: 'по мотивам Uber',
+      desc: 'Чёрное на белом, читается даже в бликах. Рецепт всегда виден в шторке внизу и меняется, пока вводишь цифры.', scheme: 'light', sheet: true },
+  ];
+
+  const demo = () => ({
+    massStr: '20',
+    targetStr: '585',
+    ligStr: '0',
+    lots: [
+      { gramsStr: '6.2', fineStr: '583', mandatory: true, touched: true },
+      { gramsStr: '12.4', fineStr: '750', mandatory: false, touched: false },
+    ],
+  });
+
+  const svg = (body) => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + body + '</svg>';
+  const ICON = {
+    history: svg('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>'),
+    settings: svg('<path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>'),
+    plus: svg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
+    trash: svg('<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>'),
+    copy: svg('<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
+    check: svg('<path d="M20 6 9 17l-5-5"/>'),
+    chev: svg('<path d="m6 9 6 6 6-6"/>'),
+    flask: svg('<path d="M10 2v7.5a2 2 0 0 1-.2.9L4.7 20.6a1 1 0 0 0 .9 1.4h12.8a1 1 0 0 0 .9-1.4l-5.1-10.2a2 2 0 0 1-.2-.9V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>'),
+    updown: svg('<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>'),
+    scale: svg('<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>'),
+  };
+  const STATUS_ICONS =
+    '<svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>' +
+    '<svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M8 12 5.3 9.2a3.8 3.8 0 0 1 5.4 0Zm-4.1-4.2L2.5 6.4a7.8 7.8 0 0 1 11 0l-1.4 1.4a5.8 5.8 0 0 0-8.2 0ZM1.1 5 0 3.6a11.4 11.4 0 0 1 16 0L14.9 5a9.4 9.4 0 0 0-13.8 0Z"/></svg>' +
+    '<svg width="27" height="13" viewBox="0 0 27 13" aria-hidden="true"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2"/><path d="M25 4.5v4c.8-.3 1.5-1.1 1.5-2s-.7-1.7-1.5-2Z" opacity=".4"/></svg>';
+
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const chipValue = (fineStr) => {
+    const v = S.parseNumber(fineStr);
+    return FINE_CHIPS.includes(v) ? v : null;
+  };
+  const autoMandatory = (fineStr) => {
+    const f = S.parseFineness(fineStr).value;
+    return f !== null && !FINE_CHIPS.includes(f);
+  };
+  const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+  const fineLabel = (p) => p.source === 'ligature' ? 'лигатуры' : S.formatFinenessShort(p.fineness);
+  const shortText = (parts) => parts.map((p) => S.formatGrams(p.mg) + ' г ' + fineLabel(p)).join(' + ');
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+    } catch (e) { /* fall through */ }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;opacity:0';
+    document.body.append(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+  }
+
+  // ---------- markup ----------
+  function phoneMarkup(v) {
+    const p = v.id + '-';
+    const targets = TARGETS.map((t) =>
+      '<button type="button" class="chip" role="radio" aria-checked="false" data-target="' + t + '">' + t + '</button>').join('');
+    return '' +
+      '<div class="screen">' +
+        '<div class="island" aria-hidden="true"></div>' +
+        '<div class="statusbar" aria-hidden="true"><span>9:41</span><span class="sb-icons">' + STATUS_ICONS + '</span></div>' +
+        '<header class="appbar">' +
+          '<h1><span class="crumb">Сплав</span>Расчёт</h1>' +
+          '<div class="appbar-actions">' +
+            '<button type="button" class="icon-btn" data-stub="История расчётов" aria-label="История">' + ICON.history + '</button>' +
+            '<button type="button" class="icon-btn" data-stub="Настройки" aria-label="Настройки">' + ICON.settings + '</button>' +
+          '</div>' +
+        '</header>' +
+        '<div class="scroll">' +
+          '<section class="sec sec-target" aria-labelledby="' + p + 's1">' +
+            '<h2 class="sec-title" id="' + p + 's1"><span class="step" aria-hidden="true">1</span>Что отливаем</h2>' +
+            '<div class="sec-body">' +
+              '<div class="field field-mass">' +
+                '<label class="field-label" for="' + p + 'mass">Масса отливки</label>' +
+                '<div class="mass-box"><input id="' + p + 'mass" class="num" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="0"><span class="unit">г</span></div>' +
+              '</div>' +
+              '<div class="field field-target">' +
+                '<span class="field-label" id="' + p + 'tl">Проба</span>' +
+                '<div class="seg seg-target" role="radiogroup" aria-labelledby="' + p + 'tl">' + targets + '</div>' +
+              '</div>' +
+            '</div>' +
+          '</section>' +
+          '<section class="sec sec-stock" aria-labelledby="' + p + 's2">' +
+            '<h2 class="sec-title" id="' + p + 's2"><span class="step" aria-hidden="true">2</span>Что есть в наличии</h2>' +
+            '<div class="sec-body">' +
+              '<ul class="lots"></ul>' +
+              '<button type="button" class="add">' + ICON.plus + '<span>Добавить металл</span></button>' +
+            '</div>' +
+            '<p class="sec-hint">Лигатура есть всегда. «Взять целиком» включай для кусков, которые не режешь: лом, литники.</p>' +
+          '</section>' +
+          '<section class="sec sec-result" aria-labelledby="' + p + 's3">' +
+            '<span class="sheet-handle" aria-hidden="true"></span>' +
+            '<h2 class="sec-title" id="' + p + 's3"><span class="step" aria-hidden="true">3</span>Положить в тигель</h2>' +
+            '<div class="result" aria-live="polite"></div>' +
+          '</section>' +
+        '</div>' +
+        '<nav class="tabbar" aria-label="Разделы">' +
+          '<button type="button" class="tab" aria-current="page">' + ICON.flask + '<span>Расчёт</span></button>' +
+          '<button type="button" class="tab" data-stub="Вкладка «Довести пробу»">' + ICON.updown + '<span>Довести</span></button>' +
+          '<button type="button" class="tab" data-stub="Вкладка «Что получится»">' + ICON.scale + '<span>Проверить</span></button>' +
+        '</nav>' +
+        '<div class="toast" role="status"></div>' +
+        '<div class="home-ind" aria-hidden="true"></div>' +
+      '</div>';
+  }
+
+  function lotMarkup(l, p) {
+    const custom = chipValue(l.fineStr) === null ? l.fineStr : '';
+    const chips = FINE_CHIPS.map((f) =>
+      '<button type="button" class="chip" data-chip="' + f + '" aria-pressed="false">' + f + '</button>').join('');
+    return '' +
+      '<li class="lot" data-id="' + l.id + '">' +
+        '<div class="lot-top">' +
+          '<div class="lot-g"><input id="' + p + 'g' + l.id + '" class="num" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="0" aria-label="Масса куска, г" data-k="grams" value="' + esc(l.gramsStr) + '"><span class="unit">г</span></div>' +
+          '<div class="seg seg-fine" role="group" aria-label="Проба куска">' + chips +
+            '<input id="' + p + 'f' + l.id + '" class="chip-input" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="своя" aria-label="Своя проба" data-k="fine" value="' + esc(custom) + '">' +
+          '</div>' +
+        '</div>' +
+        '<div class="lot-bottom">' +
+          '<button type="button" class="whole" role="switch" aria-checked="false"><span class="whole-ctl" aria-hidden="true"></span><span>Взять целиком</span></button>' +
+          '<button type="button" class="lot-del" aria-label="Удалить кусок">' + ICON.trash + '</button>' +
+        '</div>' +
+        '<p class="lot-err"></p>' +
+      '</li>';
+  }
+
+  // composition ring: one arc per ingredient, length by mass
+  function donutMarkup(parts, ranks, fineness) {
+    const total = parts.reduce((s, x) => s + x.mg, 0);
+    const R = 74, C = 2 * Math.PI * R, GAP = parts.length > 1 ? 4 : 0;
+    let off = 0;
+    const arcs = parts.map((part, i) => {
+      const len = (part.mg / total) * C;
+      const a = '<circle cx="92" cy="92" r="' + R + '" fill="none" stroke-width="16" style="stroke: var(--seg-' + ranks[i] + ')"' +
+        ' stroke-dasharray="' + Math.max(0, len - GAP).toFixed(2) + ' ' + C.toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '"' +
+        ' transform="rotate(-90 92 92)"/>';
+      off += len;
+      return a;
+    }).join('');
+    return '<div class="donut"><svg viewBox="0 0 184 184" role="img" aria-label="Состав плавки по массе">' +
+      '<circle cx="92" cy="92" r="' + R + '" fill="none" stroke-width="16" style="stroke: var(--ring-track)"/>' + arcs + '</svg>' +
+      '<div class="donut-c" aria-hidden="true"><span class="donut-f">' + S.formatFinenessShort(fineness) + '</span><span class="donut-l">проба</span></div></div>';
+  }
+
+  // ---------- one live phone ----------
+  function Phone(v, col) {
+    const phone = col.querySelector('.phone');
+    phone.innerHTML = phoneMarkup(v);
+    const p = v.id + '-';
+    const $ = (sel) => phone.querySelector(sel);
+    const screen = $('.screen');
+    const lotsEl = $('.lots');
+    const resultEl = $('.result');
+    const massEl = $('#' + p + 'mass');
+
+    let nextId = 1;
+    const newLot = (src) => ({
+      id: nextId++,
+      gramsStr: (src && src.gramsStr) || '',
+      fineStr: (src && src.fineStr) || '',
+      mandatory: !!(src && src.mandatory),
+      touched: !!(src && src.touched),
+    });
+    let st;
+    let moreOpen = false;
+    function load(src) {
+      st = { massStr: src.massStr, targetStr: src.targetStr, ligStr: src.ligStr, lots: src.lots.map(newLot) };
+      if (!st.lots.length) st.lots.push(newLot());
+    }
+
+    function updateLot(row, l) {
+      const v2 = S.parseNumber(l.fineStr);
+      row.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.chip) === v2)));
+      const ci = row.querySelector('.chip-input');
+      ci.classList.toggle('filled', ci.value.trim() !== '' && document.activeElement !== ci);
+      row.querySelector('.whole').setAttribute('aria-checked', String(!!l.mandatory));
+      row.querySelector('.lot-err').textContent = S.parseFineness(l.fineStr).error || '';
+    }
+    function renderLots() {
+      lotsEl.innerHTML = st.lots.map((l) => lotMarkup(l, p)).join('');
+      lotsEl.querySelectorAll('.lot').forEach((row) => updateLot(row, findLot(row)));
+    }
+    const findLot = (row) => st.lots.find((x) => x.id === Number(row.dataset.id));
+    function renderTarget() {
+      phone.querySelectorAll('[data-target]').forEach((c) => c.setAttribute('aria-checked', String(c.dataset.target === st.targetStr)));
+    }
+
+    function readInput() {
+      return {
+        massMg: S.parseGrams(st.massStr),
+        target: S.parseFineness(st.targetStr).value,
+        ligatureFineness: S.parseLigatureFineness(st.ligStr),
+        lots: st.lots.map((l) => ({ id: l.id, mg: S.parseGrams(l.gramsStr), fineness: S.parseFineness(l.fineStr).value, mandatory: l.mandatory })),
+      };
+    }
+
+    function recipeMarkup(o, input, kicker) {
+      const lig = (x) => x.source === 'ligature';
+      const gold = o.parts.filter((x) => !lig(x)).slice().sort((a, b) => b.fineness - a.fineness);
+      const ranks = o.parts.map((x) => lig(x) ? 'lig' : Math.min(3, gold.indexOf(x) + 1));
+      const rows = o.parts.map((part, i) => {
+        let tag = '';
+        if (part.wholeLot) tag = 'целиком';
+        else if (part.cutFromMg) tag = 'отрезать от ' + S.formatGramsShort(part.cutFromMg) + ' г';
+        else if (part.source === 'reference') tag = 'нет в наличии';
+        return '<li class="ingr-row">' +
+          '<span class="ingr-g">' + S.formatGrams(part.mg) + '<small>г</small></span>' +
+          '<span class="ingr-what">' +
+            '<span class="ingr-key" style="background: var(--seg-' + ranks[i] + ')" aria-hidden="true"></span>' +
+            '<span class="badge' + (lig(part) ? ' lig' : '') + '">' + (lig(part) ? 'лигатура' : S.formatFinenessShort(part.fineness)) + '</span>' +
+            (tag ? '<span class="ingr-tag">' + tag + '</span>' : '') +
+          '</span></li>';
+      }).join('');
+      const notes = [];
+      if (o.note) notes.push('<p class="note">' + cap(o.note) + '</p>');
+      if (o.skipped && o.skipped.length) notes.push('<p class="note">Не брать: ' + o.skipped.map((l) => S.formatGrams(l.mg) + ' г ' + S.formatFinenessShort(l.fineness)).join(', ') + '</p>');
+      if (o.leftover && o.leftover.mg > 0) notes.push('<p class="note info">Останется: ' + S.formatGrams(o.leftover.mg) + ' г пробы ' + S.formatFinenessShort(o.leftover.fineness) + '</p>');
+      if (o.check && !o.check.ok) notes.push('<p class="note">Из-за округления до 0.01 г проба выйдет ' + S.formatFineness(o.check.fineness) + '</p>');
+      const c = o.check;
+      return '<article class="recipe">' +
+        '<div class="recipe-head">' +
+          (kicker ? '<p class="recipe-kicker">' + kicker + '</p>' : '') +
+          '<p class="recipe-sub">На отливку ' + S.formatGramsShort(input.massMg) + ' г пробы ' + S.formatFinenessShort(input.target) + '</p>' +
+        '</div>' +
+        (v.donut ? donutMarkup(o.parts, ranks, c.fineness) : '') +
+        '<ul class="ingr">' + rows + '</ul>' +
+        '<div class="recipe-total"><span class="t-label">Получится</span><span class="t-val">' +
+          '<span class="t-main"><span class="t-mass">' + S.formatGrams(c.totalMg) + ' г</span><span class="t-sep">, </span><span class="t-fine">проба ' + S.formatFineness(c.fineness) + '</span></span>' +
+          '<span class="t-gold">чистого золота ' + S.formatGold(c.goldMg) + ' г</span></span></div>' +
+        notes.join('') +
+        '<button type="button" class="btn-primary" data-copy="main">' + ICON.copy + '<span>Скопировать рецепт</span></button>' +
+      '</article>';
+    }
+
+    function altTag(o) {
+      if (o.section === 'other') return 'Нужен металл, которого нет в наличии';
+      if (o.section === 'short') return 'Из наличия, но металла не хватает';
+      if (o.section === 'stock') return 'Из наличия';
+      if (o.leftover) return 'Отрезать другой кусок';
+      return 'Вариант';
+    }
+
+    let current = { main: null, alts: [] };
+    function render() {
+      const input = readInput();
+      const res = S.solve(input);
+      let main = null, alts = [], msg = '', msgCls = '', kicker = '';
+      if (res.status === 'exact') { main = res; msg = res.message; msgCls = 'ok'; }
+      else if (res.status === 'error') {
+        msg = res.message;
+        main = res.dilutions[0] || null;
+        alts = res.dilutions.slice(1);
+        if (main) kicker = 'Можно так: отрезать часть и добрать';
+      } else if (res.status === 'ok') { main = res.options[0] || null; alts = res.options.slice(1); }
+      current = { main, alts };
+      // solver messages still use the old switch name
+      msg = msg.replace(/«Весь в плавку»/g, '«Взять целиком»');
+
+      let html = '';
+      if (res.status === 'empty') {
+        html = '<div class="empty"><p>Введи массу отливки и выбери пробу, здесь появится рецепт.</p>' +
+          '<button type="button" class="btn-ghost" data-act="demo">Показать пример</button></div>';
+      } else {
+        if (msg) html += '<p class="note ' + msgCls + '">' + msg + '</p>';
+        if (main) html += recipeMarkup(main, input, kicker);
+        else if (res.status === 'ok') html += '<div class="empty"><p>Из этого металла пробу ' + S.formatFinenessShort(input.target) + ' не получить. Добавь кусок пробой выше или ниже нужной.</p></div>';
+        if (alts.length) {
+          html += '<details class="more"' + (moreOpen ? ' open' : '') + '><summary><span>Другие варианты<span class="count">' + alts.length + '</span></span><span class="chev">' + ICON.chev + '</span></summary>' +
+            alts.map((o, i) => '<div class="alt">' +
+              '<p class="alt-tag">' + altTag(o) + '</p>' +
+              '<p class="alt-text">' + shortText(o.parts) + '</p>' +
+              (o.note ? '<p class="alt-note">' + cap(o.note) + '</p>' : '') +
+              '<button type="button" class="alt-copy" data-copy="' + i + '" aria-label="Скопировать вариант">' + ICON.copy + '</button>' +
+            '</div>').join('') + '</details>';
+        }
+        html += '<button type="button" class="btn-ghost" data-act="new">Новая плавка</button>';
+      }
+      resultEl.innerHTML = html;
+      const det = resultEl.querySelector('.more');
+      if (det) det.addEventListener('toggle', () => { moreOpen = det.open; });
+    }
+
+    let toastTimer = null;
+    function toast(text) {
+      const t = $('.toast');
+      t.textContent = text;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+
+    // ---------- events ----------
+    massEl.addEventListener('input', () => { st.massStr = massEl.value; render(); });
+    phone.querySelector('.seg-target').addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-target]');
+      if (!chip) return;
+      st.targetStr = chip.dataset.target;
+      renderTarget();
+      render();
+    });
+    lotsEl.addEventListener('input', (e) => {
+      const row = e.target.closest('.lot');
+      const l = row && findLot(row);
+      if (!l) return;
+      if (e.target.dataset.k === 'grams') l.gramsStr = e.target.value;
+      if (e.target.dataset.k === 'fine') {
+        l.fineStr = e.target.value;
+        if (!l.touched) l.mandatory = autoMandatory(l.fineStr);
+      }
+      updateLot(row, l);
+      render();
+    });
+    lotsEl.addEventListener('focusout', (e) => {
+      const row = e.target.closest('.lot');
+      if (!row || !e.target.classList.contains('chip-input')) return;
+      setTimeout(() => {
+        const l = findLot(row);
+        if (l && row.isConnected) updateLot(row, l);
+      }, 0);
+    });
+    lotsEl.addEventListener('focusin', (e) => {
+      if (e.target.classList.contains('chip-input')) e.target.classList.remove('filled');
+    });
+    lotsEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      const row = btn && btn.closest('.lot');
+      const l = row && findLot(row);
+      if (!l) return;
+      if (btn.dataset.chip) {
+        l.fineStr = btn.dataset.chip;
+        row.querySelector('.chip-input').value = '';
+        if (!l.touched) l.mandatory = false;
+      } else if (btn.classList.contains('whole')) {
+        l.mandatory = !l.mandatory;
+        l.touched = true;
+      } else if (btn.classList.contains('lot-del')) {
+        st.lots = st.lots.filter((x) => x !== l);
+        if (!st.lots.length) st.lots.push(newLot());
+        renderLots();
+        render();
+        return;
+      } else return;
+      updateLot(row, l);
+      render();
+    });
+    $('.add').addEventListener('click', () => {
+      st.lots.push(newLot());
+      renderLots();
+      render();
+      lotsEl.lastElementChild.querySelector('[data-k="grams"]').focus();
+    });
+    resultEl.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      if (btn.dataset.act === 'new') {
+        load({ massStr: '', targetStr: st.targetStr, ligStr: st.ligStr, lots: [] });
+        renderAll();
+        massEl.focus();
+        toast('Пустая форма для следующей опоки. В приложении расчёт уйдёт в историю.');
+        return;
+      }
+      if (btn.dataset.act === 'demo') { load(demo()); renderAll(); return; }
+      if (btn.dataset.copy === undefined) return;
+      const o = btn.dataset.copy === 'main' ? current.main : current.alts[Number(btn.dataset.copy)];
+      if (!o) return;
+      const ok = await copyText(o.text);
+      if (!ok) { toast('Не удалось скопировать: ' + o.text); return; }
+      btn.classList.add('done');
+      const before = btn.innerHTML;
+      btn.innerHTML = btn.dataset.copy === 'main' ? ICON.check + '<span>Скопировано</span>' : ICON.check;
+      setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = before; }, 1300);
+    });
+    phone.addEventListener('click', (e) => {
+      const stub = e.target.closest('[data-stub]');
+      if (stub) toast(stub.dataset.stub + ': сделаю после выбора варианта.');
+    });
+
+    function renderAll() {
+      massEl.value = st.massStr;
+      renderTarget();
+      renderLots();
+      render();
+    }
+
+    // bottom sheet: keep the form scrollable above it
+    if (v.sheet && 'ResizeObserver' in window) {
+      const sheet = $('.sec-result');
+      new ResizeObserver(() => screen.style.setProperty('--sheet-h', sheet.offsetHeight + 'px')).observe(sheet);
+    }
+
+    load(demo());
+    renderAll();
+  }
+
+  // ---------- gallery ----------
+  const row = document.getElementById('row');
+  VARIANTS.forEach((v, i) => {
+    const col = document.createElement('section');
+    col.className = 'g-col';
+    col.setAttribute('aria-label', 'Вариант ' + (i + 1) + ': ' + v.name);
+    col.innerHTML =
+      '<div class="g-cap">' +
+        '<div class="g-cap-top"><span class="g-num">' + (i + 1) + '</span><h2>' + v.name + '</h2></div>' +
+        '<p class="g-ref">' + v.ref + '</p>' +
+        '<p class="g-desc">' + v.desc + '</p>' +
+        '<div class="g-seg" role="group" aria-label="Тема телефона">' +
+          '<button type="button" data-scheme="light" aria-pressed="' + (v.scheme === 'light') + '">Светлая</button>' +
+          '<button type="button" data-scheme="dark" aria-pressed="' + (v.scheme === 'dark') + '">Тёмная</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="phone v-' + v.id + '" data-scheme="' + v.scheme + '"></div>';
+    row.append(col);
+    col.querySelector('.g-cap .g-seg').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-scheme]');
+      if (!b) return;
+      col.querySelector('.phone').dataset.scheme = b.dataset.scheme;
+      col.querySelectorAll('.g-cap [data-scheme]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    });
+    Phone(v, col);
+  });
+
+  let fit = true;
+  function layout() {
+    const cs = getComputedStyle(row);
+    const avail = row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const gap = parseFloat(cs.columnGap) || 28;
+    let z = 1;
+    if (window.innerWidth < 760) z = Math.min(1, avail / PHONE_W);
+    else if (fit) z = Math.max(0.55, Math.min(1, (avail - gap * 4) / (PHONE_W * 5)));
+    document.documentElement.style.setProperty('--z', z.toFixed(3));
+  }
+  document.querySelector('[data-fit]').parentElement.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-fit]');
+    if (!b) return;
+    fit = b.dataset.fit === 'fit';
+    document.querySelectorAll('[data-fit]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    layout();
+  });
+  window.addEventListener('resize', layout);
+  layout();
+})();
+</script>
+</body>
+</html>
